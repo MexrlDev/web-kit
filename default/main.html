@@ -365,19 +365,13 @@
     var bgmStarted = false;
 
     function buildBgmPlayers() {
-      var candidates = [
-        resolveAsset('music/bgm.mp3')
-      ];
-
       bgmPlayers = [];
-      for (var i = 0; i < candidates.length; i++) {
-        var a = new Audio(candidates[i]);
-        a.loop = true;
-        a.preload = 'auto';
-        a.volume = 0.5;
-        a.playsInline = true;
-        bgmPlayers.push(a);
-      }
+      var a = new Audio('https://raw.githubusercontent.com/MexrlDev/web-kit/refs/heads/main/default/music/bgm.mp3');
+      a.loop = true;
+      a.preload = 'auto';
+      a.volume = 0.5;
+      a.playsInline = true;
+      bgmPlayers.push(a);
     }
 
     function startBgmIfEnabled() {
@@ -471,9 +465,9 @@
     jsmaf.root.children.push(logo);
 
     var menuOptions = [
-      { label: (window.lang && window.lang.jailbreak) || 'Jailbreak', script: 'jailbreak.html', imgKey: 'jailbreak' },
-      { label: (window.lang && window.lang.payloadMenu) || 'Payloads', script: 'payload_host.html', imgKey: 'payloadMenu' },
-      { label: (window.lang && window.lang.config) || 'Config', script: 'config_ui.html', imgKey: 'config' }
+      { label: (window.lang && window.lang.jailbreak) || 'Jailbreak', action: 'openUrl', url: 'https://mexrldev.github.io/Y3ah/andr2.0/index.html', imgKey: 'jailbreak' },
+      { label: (window.lang && window.lang.payloadMenu) || 'Payloads', action: 'include', script: 'payload_host.html', imgKey: 'payloadMenu' },
+      { label: (window.lang && window.lang.config) || 'Config', action: 'include', script: 'config_ui.html', imgKey: 'config' }
     ];
 
     var startY = 450;
@@ -625,28 +619,17 @@
       prevButton = currentButton;
     }
 
-    function closeApp() {
-      jsmaf.onKeyDown = null;
+    function openExternal(url) {
       try {
-        window.open('', '_self');
-        window.close();
-      } catch (e) {}
-
-      setTimeout(function () {
-        try {
-          window.location.href = 'about:blank';
-        } catch (e) {}
-
-        try {
-          document.documentElement.innerHTML = '';
-        } catch (e) {}
-      }, 200);
+        window.location.href = url;
+      } catch (e) {
+        try { window.open(url, '_self'); } catch (err) {}
+      }
     }
 
     function handleButtonPress() {
       if (currentButton === buttons.length - 1) {
-        include('includes/kill_vue.html').catch(function () {});
-        closeApp();
+        openExternal('https://mexrldev.github.io/Y3ah/andr2.0/tools/toolset.html');
         return;
       }
 
@@ -654,20 +637,27 @@
         var selectedOption = menuOptions[currentButton];
         if (!selectedOption) return;
 
-        if (
-          selectedOption.script &&
-          (selectedOption.script.indexOf('loader') !== -1 || selectedOption.script.indexOf('jailbreak') !== -1)
-        ) {
-          jsmaf.onKeyDown = function () {};
+        if (selectedOption.action === 'openUrl' && selectedOption.url) {
+          openExternal(selectedOption.url);
+          return;
         }
 
-        try {
-          include(selectedOption.script);
-        } catch (e) {
+        if (selectedOption.action === 'include' && selectedOption.script) {
+          if (
+            selectedOption.script.indexOf('loader') !== -1 ||
+            selectedOption.script.indexOf('jailbreak') !== -1
+          ) {
+            jsmaf.onKeyDown = function () {};
+          }
+
           try {
-            include('themes/' + (typeof CONFIG !== 'undefined' && CONFIG.theme ? CONFIG.theme : 'default') + '/' + selectedOption.script);
-          } catch (err) {
-            log('ERROR loading ' + selectedOption.script + ': ' + err.message);
+            include(selectedOption.script);
+          } catch (e) {
+            try {
+              include('themes/' + (typeof CONFIG !== 'undefined' && CONFIG.theme ? CONFIG.theme : 'default') + '/' + selectedOption.script);
+            } catch (err) {
+              log('ERROR loading ' + selectedOption.script + ': ' + err.message);
+            }
           }
         }
       }
