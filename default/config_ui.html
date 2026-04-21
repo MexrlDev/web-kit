@@ -1,512 +1,753 @@
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
   <title>config_ui</title>
   <style>
-    html,body{height:100%;margin:0;background:#000;font-family:Arial,Helvetica,sans-serif;color:#fff}
-    #viewport{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    #screen{position:relative;width:1920px;height:1080px;overflow:hidden;background:#000;image-rendering:pixelated;transform-origin:center center}
-    .ui-img,.ui-text{position:absolute;transform-origin:left top;will-change:transform,opacity,left,top;pointer-events:none}
-    .ui-text{display:flex;align-items:center;justify-content:center;font-weight:600;text-shadow:0 1px 0 rgba(0,0,0,0.8);color:white}
-    .rgb-glow{position:absolute;z-index:1;border-radius:8px;filter:blur(8px) saturate(1.5);pointer-events:none;opacity:0.95;background:conic-gradient(#ff0000,#ff8800,#ffee00,#88ff00,#00ffee,#0000ff,#8800ff,#ff0088,#ff0000);mask:radial-gradient(circle,transparent 60%,black 61%);-webkit-mask:radial-gradient(circle,transparent 60%,black 61%);animation:spin 3000ms linear infinite;transform-origin:center;display:none}
-    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, Helvetica, sans-serif;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #000;
+      touch-action: none;
+    }
+
+    #screen {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #000;
+      image-rendering: pixelated;
+      transform-origin: center center;
+      will-change: transform;
+    }
+
+    .ui-img, .ui-text {
+      position: absolute;
+      transform-origin: left top;
+      will-change: transform, opacity, left, top;
+    }
+
+    .ui-img {
+      pointer-events: none;
+      image-rendering: pixelated;
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+
+    .ui-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.8);
+      pointer-events: none;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .rgb-glow {
+      position: absolute;
+      z-index: 1;
+      border-radius: 8px;
+      filter: blur(8px) saturate(1.5);
+      pointer-events: none;
+      opacity: 0.95;
+      background: conic-gradient(#ff0000,#ff8800,#ffee00,#88ff00,#00ffee,#0000ff,#8800ff,#ff0088,#ff0000);
+      mask: radial-gradient(circle, transparent 60%, black 61%);
+      -webkit-mask: radial-gradient(circle, transparent 60%, black 61%);
+      animation: spin 3000ms linear infinite;
+      transform-origin: center;
+      display: none;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .interactive {
+      pointer-events: auto !important;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body>
-  <div id="viewport"><div id="screen" aria-hidden="false"></div></div>
+  <div id="viewport">
+    <div id="screen" aria-hidden="false"></div>
+  </div>
+
   <script>
-(function(){
-'use strict';
-window.log = function(){ console.log.apply(console, arguments); };
-function scriptBaseURL(){
-  var cur = document.currentScript && document.currentScript.src;
-  if(!cur) cur = window.location.href;
-  return new URL('.', cur).href;
-}
-function include(path){
-  var p = path;
-  if(!/\.[a-z0-9]+$/i.test(p)) p = p + '.html';
-  if(/\.js$/i.test(p)) p = p.replace(/\.js$/i, '.html');
-  var resolved = new URL(p, scriptBaseURL()).href;
-  return fetch(resolved).then(function(r){
-    if(!r.ok) throw new Error('Failed to fetch ' + resolved + ' (' + r.status + ')');
-    return r.text();
-  }).then(function(text){
-    (0, eval)(text + '\n//# sourceURL=' + resolved);
-    return true;
-  });
-}
-window.jsmaf = { root:{ children:[] }, setInterval:function(fn,t){return window.setInterval(fn,t);}, clearInterval:function(id){window.clearInterval(id);}, setTimeout:window.setTimeout, onKeyDown:null, circleIsAdvanceButton:false, XMLHttpRequest:window.XMLHttpRequest };
-var screen = document.getElementById('screen');
-function createImageNode(obj){
-  var wrapperGlow = document.createElement('div');
-  wrapperGlow.className = 'rgb-glow';
-  wrapperGlow.style.display = 'none';
-  screen.appendChild(wrapperGlow);
-  var img = document.createElement('img');
-  img.className = 'ui-img';
-  img.style.position = 'absolute';
-  img.draggable = false;
-  img.style.pointerEvents = 'none';
-  if(obj.url) img.src = obj.url;
-  updateNodeFromObj(img, obj);
-  img._glow = wrapperGlow;
-  screen.appendChild(img);
-  img.style.zIndex = 2;
-  wrapperGlow.style.zIndex = 1;
-  return img;
-}
-function createTextNode(obj){
-  var div = document.createElement('div');
-  div.className = 'ui-text';
-  div.style.whiteSpace = 'nowrap';
-  div.style.pointerEvents = 'none';
-  updateNodeFromObj(div, obj);
-  if(obj.text) div.textContent = obj.text;
-  div.style.zIndex = 3;
-  screen.appendChild(div);
-  return div;
-}
-function updateNodeFromObj(node, obj){
-  node.style.display = (obj.visible === false) ? 'none' : 'block';
-  node.style.opacity = (typeof obj.alpha === 'number') ? obj.alpha : '1';
-  var x = (typeof obj.x === 'number') ? obj.x : 0;
-  var y = (typeof obj.y === 'number') ? obj.y : 0;
-  var w = (typeof obj.width === 'number') ? obj.width : (node.naturalWidth || 0);
-  var h = (typeof obj.height === 'number') ? obj.height : (node.naturalHeight || 0);
-  var sx = (typeof obj.scaleX === 'number') ? obj.scaleX : 1;
-  var sy = (typeof obj.scaleY === 'number') ? obj.scaleY : sx;
-  node.style.left = x + 'px';
-  node.style.top = y + 'px';
-  node.style.width = w + 'px';
-  node.style.height = h + 'px';
-  node.style.transform = 'scale(' + sx + ',' + sy + ')';
-  if(obj.borderWidth && obj.borderColor){
-    node.style.border = obj.borderWidth + 'px solid ' + obj.borderColor;
-    node.style.boxSizing = 'border-box';
-  } else {
-    node.style.border = 'none';
-  }
-  if(node._glow){
-    var glow = node._glow;
-    var gx = x - 8;
-    var gy = y - 8;
-    var gw = (w * sx) + 16;
-    var gh = (h * sy) + 16;
-    glow.style.left = gx + 'px';
-    glow.style.top = gy + 'px';
-    glow.style.width = gw + 'px';
-    glow.style.height = gh + 'px';
-    var br = Math.max(6, Math.min(24, Math.round(Math.min(gw,gh) * 0.06)));
-    glow.style.borderRadius = br + 'px';
-    glow.style.display = (obj.__glowVisible) ? 'block' : 'none';
-    glow.style.opacity = (obj._glowOpacity !== undefined) ? obj._glowOpacity : 0.95;
-  }
-}
-window.Image = function(opts){
-  opts = opts || {};
-  var obj = { url: opts.url || '', x: opts.x || 0, y: opts.y || 0, width: opts.width || (opts.url ? 100 : 0), height: opts.height || (opts.url ? 100 : 0), visible: (typeof opts.visible === 'boolean') ? opts.visible : true, scaleX:1, scaleY:1, alpha:1, borderColor: opts.borderColor || 'transparent', borderWidth: opts.borderWidth || 0, __glowVisible:false };
-  var node = createImageNode(obj);
-  obj._node = node;
-  Object.defineProperty(obj, 'url', { get:function(){return node.src;}, set:function(v){ node.src = v; } });
-  Object.defineProperty(obj, 'x', { get:function(){return parseFloat(node.style.left)||0;}, set:function(v){ node.style.left = v + 'px'; } });
-  Object.defineProperty(obj, 'y', { get:function(){return parseFloat(node.style.top)||0;}, set:function(v){ node.style.top = v + 'px'; } });
-  Object.defineProperty(obj, 'width', { get:function(){return parseFloat(node.style.width)||0;}, set:function(v){ node.style.width = v + 'px'; } });
-  Object.defineProperty(obj, 'height', { get:function(){return parseFloat(node.style.height)||0;}, set:function(v){ node.style.height = v + 'px'; } });
-  Object.defineProperty(obj, 'visible', { get:function(){return node.style.display !== 'none';}, set:function(v){ node.style.display = v ? 'block' : 'none'; } });
-  Object.defineProperty(obj, 'scaleX', { get:function(){return obj._scaleX||1;}, set:function(v){ obj._scaleX = v; updateNodeFromObj(node,obj); } });
-  Object.defineProperty(obj, 'scaleY', { get:function(){return obj._scaleY||1;}, set:function(v){ obj._scaleY = v; updateNodeFromObj(node,obj); } });
-  Object.defineProperty(obj, 'alpha', { get:function(){return parseFloat(node.style.opacity)||1;}, set:function(v){ node.style.opacity = v; } });
-  Object.defineProperty(obj, 'borderColor', { get:function(){return node.style.borderColor||'transparent';}, set:function(v){ node.style.borderColor = v; updateNodeFromObj(node,obj); } });
-  Object.defineProperty(obj, 'borderWidth', { get:function(){return parseFloat(node.style.borderWidth)||0;}, set:function(v){ node.style.borderWidth = v; updateNodeFromObj(node,obj); } });
-  Object.defineProperty(obj, '__glowVisible', { get:function(){return obj.__glowVisibleFlag||false;}, set:function(v){ obj.__glowVisibleFlag = v; obj._node._glowVisible = v; updateNodeFromObj(node,obj); } });
-  screen.appendChild(node);
-  return obj;
-};
-jsmaf.Text = function(){
-  var obj = { text:'', x:0, y:0, style:'white', scaleX:1, scaleY:1 };
-  var node = createTextNode(obj);
-  obj._node = node;
-  Object.defineProperty(obj, 'text', { get:function(){return node.textContent;}, set:function(v){ node.textContent = v; } });
-  Object.defineProperty(obj, 'x', { get:function(){return parseFloat(node.style.left)||0;}, set:function(v){ node.style.left = v + 'px'; } });
-  Object.defineProperty(obj, 'y', { get:function(){return parseFloat(node.style.top)||0;}, set:function(v){ node.style.top = v + 'px'; } });
-  Object.defineProperty(obj, 'scaleX', { get:function(){return obj._scaleX||1;}, set:function(v){ obj._scaleX = v; obj._node.style.transform = 'scale(' + v + ',' + (obj._scaleY||v) + ')'; obj._scaleX = v; } });
-  Object.defineProperty(obj, 'scaleY', { get:function(){return obj._scaleY||1;}, set:function(v){ obj._scaleY = v; obj._node.style.transform = 'scale(' + (obj._scaleX||v) + ',' + v + ')'; obj._scaleY = v; } });
-  Object.defineProperty(obj, 'style', { set:function(v){ if(v === 'white'){ obj._node.style.color = 'white'; obj._node.style.fontSize = '24px'; } else if(v === 'title'){ obj._node.style.color = 'white'; obj._node.style.fontSize = '32px'; } } });
-  screen.appendChild(node);
-  return obj;
-};
-function Style(opts){ window.__styles__ = window.__styles__ || {}; window.__styles__[opts.name] = opts; }
-function updateScale(){
-  var designW = 1920, designH = 1080;
-  var availableW = window.innerWidth;
-  var availableH = window.innerHeight;
-  var scale = Math.min(availableW / designW, availableH / designH);
-  screen.style.transform = 'scale(' + scale + ')';
-}
-window.addEventListener('resize', updateScale);
-updateScale();
-var lang;
-include('languages.html').then(function(){ if(window.lang) lang = window.lang; }).catch(function(){ lang = { loadingConfig:'Loading config...', autoLapse:'Auto Lapse', autoPoop:'Auto Poop', autoClose:'Auto Close', music:'Music', jbBehavior:'JB Behavior', theme:'Theme', jbBehaviorAuto:'Auto', jbBehaviorNetctrl:'Netctrl', jbBehaviorLapse:'Lapse', configLoaded:'Config loaded' }; });
-(function(){
-  if (typeof lang === 'undefined') lang = { loadingConfig:'Loading config...', autoLapse:'Auto Lapse', autoPoop:'Auto Poop', autoClose:'Auto Close', music:'Music', jbBehavior:'JB Behavior', theme:'Theme', jbBehaviorAuto:'Auto', jbBehaviorNetctrl:'Netctrl', jbBehaviorLapse:'Lapse', configLoaded:'Config loaded' };
-  log(lang.loadingConfig);
-  var fs = {
-    write: function(filename, content, callback){
-      try {
-        localStorage.setItem('config.' + filename, content);
-        if (callback) callback(null);
-      } catch(e){
-        if (callback) callback(new Error('failed'));
+  (function () {
+    'use strict';
+
+    function scriptBaseURL() {
+      var cur = document.currentScript && document.currentScript.src;
+      if (!cur) cur = window.location.href;
+      return new URL('.', cur).href;
+    }
+
+    function resolveAsset(path) {
+      return new URL(path, scriptBaseURL()).href;
+    }
+
+    function navigateTo(target) {
+      window.location.href = new URL(target, scriptBaseURL()).href;
+    }
+
+    window.log = function () {
+      console.log.apply(console, arguments);
+    };
+
+    var screen = document.getElementById('screen');
+
+    function updateScale() {
+      var designW = 1920;
+      var designH = 1080;
+      var availableW = window.innerWidth;
+      var availableH = window.innerHeight;
+      var scale = Math.min(availableW / designW, availableH / designH);
+      screen.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    }
+
+    window.addEventListener('resize', updateScale);
+    window.addEventListener('orientationchange', updateScale);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateScale);
+    }
+
+    function wirePress(node, handler) {
+      var lastPressAt = 0;
+      function fire(ev) {
+        var now = Date.now();
+        if (now - lastPressAt < 250) return;
+        lastPressAt = now;
+
+        if (ev && ev.preventDefault) ev.preventDefault();
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+
+        handler(ev);
       }
-    },
-    read: function(filename, callback){
-      try {
-        var v = localStorage.getItem('config.' + filename);
-        if (v !== null) {
-          if (callback) callback(null, v);
-          return;
-        }
-        fetch('./' + filename).then(function(r){
-          if (!r.ok) {
-            if (callback) callback(new Error('failed'), null);
-            return;
-          }
-          return r.text();
-        }).then(function(text){
-          if (text === undefined) return;
-          if (callback) callback(null, text);
-        }).catch(function(){ if (callback) callback(new Error('failed'), null); });
-      } catch(e){ if (callback) callback(new Error('failed'), null); }
+
+      node.addEventListener('pointerup', fire, { passive: false });
+      node.addEventListener('touchend', fire, { passive: false });
+      node.addEventListener('click', fire, { passive: false });
     }
-  };
-  var currentConfig = { autolapse:false, autopoop:false, autoclose:false, autoclose_delay:0, music:true, jb_behavior:0, theme:'default' };
-  var userPayloads = [];
-  var configLoaded = false;
-  var jbBehaviorLabels = [lang.jbBehaviorAuto || 'Auto', lang.jbBehaviorNetctrl || 'Netctrl', lang.jbBehaviorLapse || 'Lapse'];
-  var jbBehaviorImgKeys = ['jbBehaviorAuto','jbBehaviorNetctrl','jbBehaviorLapse'];
-  function scanThemes(){
-    var themes = [];
-    try {
-      var stored = localStorage.getItem('themes.list');
-      if (stored) {
-        var parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) themes = parsed.slice();
-      }
-    } catch(e){}
-    if (themes.length === 0) themes = ['default'];
-    var idx = themes.indexOf('default');
-    if (idx > 0) { themes.splice(idx,1); themes.unshift('default'); } else if (idx < 0) { themes.unshift('default'); }
-    return themes;
-  }
-  var availableThemes = scanThemes();
-  log('Discovered themes: ' + availableThemes.join(', '));
-  var themeLabels = availableThemes.map(function(t){ return t.charAt(0).toUpperCase() + t.slice(1); });
-  var themeImgKeys = availableThemes.map(function(t){ return 'theme' + t.charAt(0).toUpperCase() + t.slice(1); });
-  var currentButton = 0;
-  var buttons = [];
-  var buttonTexts = [];
-  var buttonMarkers = [];
-  var buttonOrigPos = [];
-  var textOrigPos = [];
-  var valueTexts = [];
-  var normalButtonImg = './img/button_over_9.png';
-  var selectedButtonImg = './img/button_over_9.png';
-  jsmaf.root.children.length = 0;
-  new Style({ name:'white', color:'white', size:24 });
-  new Style({ name:'title', color:'white', size:32 });
-  var background = new Image({ url: './img/multiview_bg_VAF.png', x:0, y:0, width:1920, height:1080 });
-  jsmaf.root.children.push(background);
-  var logo = new Image({ url: './img/logo.png', x:1620, y:0, width:300, height:169 });
-  jsmaf.root.children.push(logo);
-  if (typeof useImageText !== 'undefined' && useImageText) {
-    var titleImg = new Image({ url: './img/text_config.png', x:860, y:100, width:200, height:60 });
-    jsmaf.root.children.push(titleImg);
-  } else {
-    var _title = new jsmaf.Text();
-    _title.text = lang.config || 'Config';
-    _title.x = 910;
-    _title.y = 120;
-    _title.style = 'title';
-    jsmaf.root.children.push(_title);
-  }
-  var configOptions = [
-    { key:'autolapse', label:lang.autoLapse || 'Auto Lapse', imgKey:'autoLapse', type:'toggle' },
-    { key:'autopoop', label:lang.autoPoop || 'Auto Poop', imgKey:'autoPoop', type:'toggle' },
-    { key:'autoclose', label:lang.autoClose || 'Auto Close', imgKey:'autoClose', type:'toggle' },
-    { key:'music', label:lang.music || 'Music', imgKey:'music', type:'toggle' },
-    { key:'jb_behavior', label:lang.jbBehavior || 'JB Behavior', imgKey:'jbBehavior', type:'cycle' },
-    { key:'theme', label:lang.theme || 'Theme', imgKey:'theme', type:'cycle' }
-  ];
-  var centerX = 960;
-  var startY = 200;
-  var buttonSpacing = 120;
-  var buttonWidth = 400;
-  var buttonHeight = 80;
-  for (var i=0;i<configOptions.length;i++){
-    var configOption = configOptions[i];
-    var btnX = centerX - buttonWidth/2;
-    var btnY = startY + i*buttonSpacing;
-    var button = new Image({ url: normalButtonImg, x: btnX, y: btnY, width: buttonWidth, height: buttonHeight });
-    buttons.push(button);
-    jsmaf.root.children.push(button);
-    buttonMarkers.push(null);
-    var btnText;
-    if (typeof useImageText !== 'undefined' && useImageText) {
-      btnText = new Image({ url: './img/text_' + configOption.imgKey + '.png', x: btnX + 20, y: btnY + 15, width:200, height:50 });
-    } else {
-      btnText = new jsmaf.Text();
-      btnText.text = configOption.label;
-      btnText.x = btnX + 30;
-      btnText.y = btnY + 28;
-      btnText.style = 'white';
-    }
-    buttonTexts.push(btnText);
-    jsmaf.root.children.push(btnText);
-    if (configOption.type === 'toggle') {
-      var checkUrl = currentConfig[configOption.key] ? './img/check_small_on.png' : './img/check_small_off.png';
-      var checkmark = new Image({ url: checkUrl, x: btnX + 320, y: btnY + 20, width:40, height:40 });
-      valueTexts.push(checkmark);
-      jsmaf.root.children.push(checkmark);
-    } else {
-      var valueLabel;
-      if (configOption.key === 'jb_behavior') {
-        if (typeof useImageText !== 'undefined' && useImageText) {
-          valueLabel = new Image({ url: './img/text_' + jbBehaviorImgKeys[currentConfig.jb_behavior] + '.png', x: btnX + 230, y: btnY + 15, width:150, height:50 });
-        } else {
-          valueLabel = new jsmaf.Text();
-          valueLabel.text = jbBehaviorLabels[currentConfig.jb_behavior] || jbBehaviorLabels[0];
-          valueLabel.x = btnX + 250;
-          valueLabel.y = btnY + 28;
-          valueLabel.style = 'white';
-        }
-      } else if (configOption.key === 'theme') {
-        var themeIndex = availableThemes.indexOf(currentConfig.theme);
-        var displayIndex = themeIndex >= 0 ? themeIndex : 0;
-        if (typeof useImageText !== 'undefined' && useImageText) {
-          valueLabel = new Image({ url: './img/text_' + themeImgKeys[displayIndex] + '.png', x: btnX + 230, y: btnY + 15, width:150, height:50 });
-        } else {
-          valueLabel = new jsmaf.Text();
-          valueLabel.text = themeLabels[displayIndex] || themeLabels[0];
-          valueLabel.x = btnX + 250;
-          valueLabel.y = btnY + 28;
-          valueLabel.style = 'white';
-        }
-      }
-      valueTexts.push(valueLabel);
-      jsmaf.root.children.push(valueLabel);
-    }
-    buttonOrigPos.push({ x: btnX, y: btnY });
-    textOrigPos.push({ x: btnText.x, y: btnText.y });
-  }
-  var backHint = new jsmaf.Text();
-  backHint.text = jsmaf.circleIsAdvanceButton ? 'X to go back' : 'O to go back';
-  backHint.x = centerX - 60;
-  backHint.y = startY + configOptions.length * buttonSpacing + 120;
-  backHint.style = 'white';
-  jsmaf.root.children.push(backHint);
-  var zoomInInterval = null;
-  var zoomOutInterval = null;
-  var prevButton = -1;
-  function easeInOut(t){ return (1 - Math.cos(t * Math.PI)) / 2; }
-  function animateZoomIn(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY){
-    if (zoomInInterval) jsmaf.clearInterval(zoomInInterval);
-    var btnW = buttonWidth;
-    var btnH = buttonHeight;
-    var startScale = btn.scaleX || 1.0;
-    var endScale = 1.1;
-    var duration = 175;
-    var elapsed = 0;
-    var step = 16;
-    zoomInInterval = jsmaf.setInterval(function(){
-      elapsed += step;
-      var t = Math.min(elapsed / duration, 1);
-      var eased = easeInOut(t);
-      var scale = startScale + (endScale - startScale) * eased;
-      btn.scaleX = scale;
-      btn.scaleY = scale;
-      btn.x = btnOrigX - btnW * (scale - 1) / 2;
-      btn.y = btnOrigY - btnH * (scale - 1) / 2;
-      text.scaleX = scale;
-      text.scaleY = scale;
-      text.x = textOrigX - btnW * (scale - 1) / 2;
-      text.y = textOrigY - btnH * (scale - 1) / 2;
-      if (t >= 1) { jsmaf.clearInterval(zoomInInterval); zoomInInterval = null; }
-    }, step);
-  }
-  function animateZoomOut(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY){
-    if (zoomOutInterval) jsmaf.clearInterval(zoomOutInterval);
-    var btnW = buttonWidth;
-    var btnH = buttonHeight;
-    var startScale = btn.scaleX || 1.1;
-    var endScale = 1.0;
-    var duration = 175;
-    var elapsed = 0;
-    var step = 16;
-    zoomOutInterval = jsmaf.setInterval(function(){
-      elapsed += step;
-      var t = Math.min(elapsed / duration, 1);
-      var eased = easeInOut(t);
-      var scale = startScale + (endScale - startScale) * eased;
-      btn.scaleX = scale;
-      btn.scaleY = scale;
-      btn.x = btnOrigX - btnW * (scale - 1) / 2;
-      btn.y = btnOrigY - btnH * (scale - 1) / 2;
-      text.scaleX = scale;
-      text.scaleY = scale;
-      text.x = textOrigX - btnW * (scale - 1) / 2;
-      text.y = textOrigY - btnH * (scale - 1) / 2;
-      if (t >= 1) { jsmaf.clearInterval(zoomOutInterval); zoomOutInterval = null; }
-    }, step);
-  }
-  function updateHighlight(){
-    var prevButtonObj = buttons[prevButton];
-    var buttonMarker = buttonMarkers[prevButton];
-    if (prevButton >= 0 && prevButton !== currentButton && prevButtonObj){
-      prevButtonObj.url = normalButtonImg;
-      prevButtonObj.alpha = 0.7;
-      prevButtonObj.borderColor = 'transparent';
-      prevButtonObj.borderWidth = 0;
-      if (buttonMarker) buttonMarker.visible = false;
-      animateZoomOut(prevButtonObj, buttonTexts[prevButton], buttonOrigPos[prevButton].x, buttonOrigPos[prevButton].y, textOrigPos[prevButton].x, textOrigPos[prevButton].y);
-    }
-    for (var _i2=0;_i2<buttons.length;_i2++){
-      var _button = buttons[_i2];
-      var _buttonMarker = buttonMarkers[_i2];
-      var buttonText = buttonTexts[_i2];
-      var buttonOrigPos_ = buttonOrigPos[_i2];
-      var textOrigPos_ = textOrigPos[_i2];
-      if (_button === undefined || buttonText === undefined || buttonOrigPos_ === undefined || textOrigPos_ === undefined) continue;
-      if (_i2 === currentButton){
-        _button.url = selectedButtonImg;
-        _button.alpha = 1.0;
-        _button.borderColor = 'rgb(100,180,255)';
-        _button.borderWidth = 3;
-        if (_buttonMarker) _buttonMarker.visible = true;
-        animateZoomIn(_button, buttonText, buttonOrigPos_.x, buttonOrigPos_.y, textOrigPos_.x, textOrigPos_.y);
-      } else if (_i2 !== prevButton){
-        _button.url = normalButtonImg;
-        _button.alpha = 0.7;
-        _button.borderColor = 'transparent';
-        _button.borderWidth = 0;
-        _button.scaleX = 1.0;
-        _button.scaleY = 1.0;
-        _button.x = buttonOrigPos_.x;
-        _button.y = buttonOrigPos_.y;
-        buttonText.scaleX = 1.0;
-        buttonText.scaleY = 1.0;
-        buttonText.x = textOrigPos_.x;
-        buttonText.y = textOrigPos_.y;
-        if (_buttonMarker) _buttonMarker.visible = false;
-      }
-    }
-    prevButton = currentButton;
-  }
-  function updateValueText(index){
-    var options = configOptions[index];
-    var valueText = valueTexts[index];
-    if (!options || !valueText) return;
-    var key = options.key;
-    if (options.type === 'toggle'){
-      var value = currentConfig[key];
-      valueText.url = value ? './img/check_small_on.png' : './img/check_small_off.png';
-    } else {
-      if (key === 'jb_behavior'){
-        if (typeof useImageText !== 'undefined' && useImageText) {
-          valueText.url = './img/text_' + jbBehaviorImgKeys[currentConfig.jb_behavior] + '.png';
-        } else {
-          valueText.text = jbBehaviorLabels[currentConfig.jb_behavior] || jbBehaviorLabels[0];
-        }
-      } else if (key === 'theme'){
-        var themeIndex = availableThemes.indexOf(currentConfig.theme);
-        var displayIndex = themeIndex >= 0 ? themeIndex : 0;
-        if (typeof useImageText !== 'undefined' && useImageText) {
-          valueText.url = './img/text_' + themeImgKeys[displayIndex] + '.png';
-        } else {
-          valueText.text = themeLabels[displayIndex] || themeLabels[0];
-        }
-      }
-    }
-  }
-  function saveConfig(){
-    if (!configLoaded) return;
-    var configData = { config: { autolapse: currentConfig.autolapse, autopoop: currentConfig.autopoop, autoclose: currentConfig.autoclose, autoclose_delay: currentConfig.autoclose_delay, music: currentConfig.music, jb_behavior: currentConfig.jb_behavior, theme: currentConfig.theme }, payloads: userPayloads };
-    var configContent = JSON.stringify(configData, null, 2);
-    fs.write('config.json', configContent, function(err){ if (err) log('ERROR: Failed to save config: ' + err.message); else log('Config saved successfully'); });
-  }
-  function loadConfig(){
-    fs.read('config.json', function(err,data){
-      if (err) { configLoaded = true; return; }
-      try {
-        var configData = JSON.parse(data || '{}');
-        if (configData.config){
-          var _CONFIG = configData.config;
-          currentConfig.autolapse = _CONFIG.autolapse || false;
-          currentConfig.autopoop = _CONFIG.autopoop || false;
-          currentConfig.autoclose = _CONFIG.autoclose || false;
-          currentConfig.autoclose_delay = _CONFIG.autoclose_delay || 0;
-          currentConfig.music = _CONFIG.music !== false;
-          currentConfig.jb_behavior = _CONFIG.jb_behavior || 0;
-          if (_CONFIG.theme && availableThemes.indexOf(_CONFIG.theme) >= 0) currentConfig.theme = _CONFIG.theme;
-          else currentConfig.theme = availableThemes[0] || 'default';
-          if (configData.payloads && Array.isArray(configData.payloads)) userPayloads = configData.payloads.slice();
-          for (var _i3=0;_i3<configOptions.length;_i3++) updateValueText(_i3);
-          if (currentConfig.music) { if (typeof startBgmIfEnabled === 'function') startBgmIfEnabled(); } else { if (typeof stopBgm === 'function') stopBgm(); }
-          configLoaded = true;
-          log('Config loaded successfully');
-        }
-      } catch(e){ configLoaded = true; }
-    });
-  }
-  function handleButtonPress(){
-    if (currentButton < configOptions.length){
-      var option = configOptions[currentButton];
-      var key = option.key;
-      if (option.type === 'cycle'){
-        if (key === 'jb_behavior'){
-          currentConfig.jb_behavior = (currentConfig.jb_behavior + 1) % jbBehaviorLabels.length;
-        } else if (key === 'theme'){
-          var themeIndex = availableThemes.indexOf(currentConfig.theme);
-          var displayIndex = themeIndex >= 0 ? themeIndex : 0;
-          var nextIndex = (displayIndex + 1) % availableThemes.length;
-          currentConfig.theme = availableThemes[nextIndex];
-        }
+
+    function updateNodeFromObj(node, obj) {
+      node.style.display = (obj.visible === false) ? 'none' : 'block';
+      node.style.opacity = (typeof obj.alpha === 'number') ? obj.alpha : '1';
+
+      var x = (typeof obj.x === 'number') ? obj.x : 0;
+      var y = (typeof obj.y === 'number') ? obj.y : 0;
+      var w = (typeof obj.width === 'number') ? obj.width : (node.naturalWidth || 0);
+      var h = (typeof obj.height === 'number') ? obj.height : (node.naturalHeight || 0);
+      var sx = (typeof obj.scaleX === 'number') ? obj.scaleX : 1;
+      var sy = (typeof obj.scaleY === 'number') ? obj.scaleY : sx;
+
+      node.style.left = x + 'px';
+      node.style.top = y + 'px';
+      node.style.width = w + 'px';
+      node.style.height = h + 'px';
+      node.style.transform = 'scale(' + sx + ',' + sy + ')';
+
+      if (obj.borderWidth && obj.borderColor) {
+        node.style.border = obj.borderWidth + 'px solid ' + obj.borderColor;
+        node.style.boxSizing = 'border-box';
       } else {
-        var boolKey = key;
-        currentConfig[boolKey] = !currentConfig[boolKey];
-        if (boolKey === 'music'){
-          if (typeof CONFIG !== 'undefined') CONFIG.music = currentConfig.music;
-          if (currentConfig.music) { if (typeof startBgmIfEnabled === 'function') startBgmIfEnabled(); } else { if (typeof stopBgm === 'function') stopBgm(); }
+        node.style.border = 'none';
+      }
+
+      if (node._glow) {
+        var glow = node._glow;
+        var gx = x - 8;
+        var gy = y - 8;
+        var gw = (w * sx) + 16;
+        var gh = (h * sy) + 16;
+        var br = Math.max(6, Math.min(24, Math.round(Math.min(gw, gh) * 0.06)));
+
+        glow.style.left = gx + 'px';
+        glow.style.top = gy + 'px';
+        glow.style.width = gw + 'px';
+        glow.style.height = gh + 'px';
+        glow.style.borderRadius = br + 'px';
+        glow.style.display = (obj.__glowVisible) ? 'block' : 'none';
+        glow.style.opacity = (obj._glowOpacity !== undefined) ? obj._glowOpacity : 0.95;
+      }
+    }
+
+    function createImageNode(obj) {
+      var wrapperGlow = document.createElement('div');
+      wrapperGlow.className = 'rgb-glow';
+      wrapperGlow.style.display = 'none';
+      screen.appendChild(wrapperGlow);
+
+      var img = document.createElement('img');
+      img.className = 'ui-img';
+      img.style.position = 'absolute';
+      img.draggable = false;
+      img.style.pointerEvents = obj.interactive ? 'auto' : 'none';
+      if (obj.interactive) img.classList.add('interactive');
+      if (obj.url) img.src = obj.url;
+
+      updateNodeFromObj(img, obj);
+      img._glow = wrapperGlow;
+      screen.appendChild(img);
+      img.style.zIndex = 2;
+      wrapperGlow.style.zIndex = 1;
+
+      if (obj.interactive && typeof obj.onPress === 'function') {
+        wirePress(img, obj.onPress);
+      }
+
+      return img;
+    }
+
+    function createTextNode(obj) {
+      var div = document.createElement('div');
+      div.className = 'ui-text';
+      div.style.whiteSpace = 'nowrap';
+      div.style.pointerEvents = 'none';
+      updateNodeFromObj(div, obj);
+      if (obj.text) div.textContent = obj.text;
+      div.style.zIndex = 3;
+      screen.appendChild(div);
+      return div;
+    }
+
+    window.Image = function (opts) {
+      opts = opts || {};
+      var obj = {
+        url: opts.url || '',
+        x: opts.x || 0,
+        y: opts.y || 0,
+        width: opts.width || (opts.url ? 100 : 0),
+        height: opts.height || (opts.url ? 100 : 0),
+        visible: (typeof opts.visible === 'boolean') ? opts.visible : true,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 1,
+        borderColor: opts.borderColor || 'transparent',
+        borderWidth: opts.borderWidth || 0,
+        __glowVisible: false,
+        interactive: !!opts.interactive,
+        onPress: opts.onPress || null
+      };
+
+      var node = createImageNode(obj);
+      obj._node = node;
+
+      Object.defineProperty(obj, 'url', { get: function () { return node.src; }, set: function (v) { node.src = v; } });
+      Object.defineProperty(obj, 'x', { get: function () { return parseFloat(node.style.left) || 0; }, set: function (v) { node.style.left = v + 'px'; } });
+      Object.defineProperty(obj, 'y', { get: function () { return parseFloat(node.style.top) || 0; }, set: function (v) { node.style.top = v + 'px'; } });
+      Object.defineProperty(obj, 'width', { get: function () { return parseFloat(node.style.width) || 0; }, set: function (v) { node.style.width = v + 'px'; } });
+      Object.defineProperty(obj, 'height', { get: function () { return parseFloat(node.style.height) || 0; }, set: function (v) { node.style.height = v + 'px'; } });
+      Object.defineProperty(obj, 'visible', { get: function () { return node.style.display !== 'none'; }, set: function (v) { node.style.display = v ? 'block' : 'none'; } });
+      Object.defineProperty(obj, 'scaleX', { get: function () { return obj._scaleX || 1; }, set: function (v) { obj._scaleX = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, 'scaleY', { get: function () { return obj._scaleY || 1; }, set: function (v) { obj._scaleY = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, 'alpha', { get: function () { return parseFloat(node.style.opacity) || 1; }, set: function (v) { node.style.opacity = v; } });
+      Object.defineProperty(obj, 'borderColor', { get: function () { return node.style.borderColor || 'transparent'; }, set: function (v) { node.style.borderColor = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, 'borderWidth', { get: function () { return parseFloat(node.style.borderWidth) || 0; }, set: function (v) { node.style.borderWidth = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, '__glowVisible', {
+        get: function () { return obj.__glowVisibleFlag || false; },
+        set: function (v) { obj.__glowVisibleFlag = v; obj._node._glowVisible = v; updateNodeFromObj(node, obj); }
+      });
+
+      screen.appendChild(node);
+      return obj;
+    };
+
+    window.jsmaf = {
+      root: { children: [] },
+      setInterval: function (fn, t) { return window.setInterval(fn, t); },
+      clearInterval: function (id) { window.clearInterval(id); },
+      setTimeout: window.setTimeout,
+      onKeyDown: null,
+      circleIsAdvanceButton: false,
+      XMLHttpRequest: window.XMLHttpRequest
+    };
+
+    jsmaf.Text = function () {
+      var obj = { text: '', x: 0, y: 0, style: 'white', scaleX: 1, scaleY: 1 };
+      var node = createTextNode(obj);
+      obj._node = node;
+
+      Object.defineProperty(obj, 'text', { get: function () { return node.textContent; }, set: function (v) { node.textContent = v; } });
+      Object.defineProperty(obj, 'x', { get: function () { return parseFloat(node.style.left) || 0; }, set: function (v) { node.style.left = v + 'px'; } });
+      Object.defineProperty(obj, 'y', { get: function () { return parseFloat(node.style.top) || 0; }, set: function (v) { node.style.top = v + 'px'; } });
+      Object.defineProperty(obj, 'scaleX', {
+        get: function () { return obj._scaleX || 1; },
+        set: function (v) {
+          obj._scaleX = v;
+          obj._node.style.transform = 'scale(' + v + ',' + (obj._scaleY || v) + ')';
         }
-        if (key === 'autolapse' && currentConfig.autolapse === true){
-          currentConfig.autopoop = false;
-          for (var _i4=0;_i4<configOptions.length;_i4++) if (configOptions[_i4].key === 'autopoop') { updateValueText(_i4); break; }
-        } else if (key === 'autopoop' && currentConfig.autopoop === true){
-          currentConfig.autolapse = false;
-          for (var _i5=0;_i5<configOptions.length;_i5++) if (configOptions[_i5].key === 'autolapse') { updateValueText(_i5); break; }
+      });
+      Object.defineProperty(obj, 'scaleY', {
+        get: function () { return obj._scaleY || 1; },
+        set: function (v) {
+          obj._scaleY = v;
+          obj._node.style.transform = 'scale(' + (obj._scaleX || v) + ',' + v + ')';
+        }
+      });
+      Object.defineProperty(obj, 'style', {
+        set: function (v) {
+          if (v === 'white') {
+            obj._node.style.color = 'white';
+            obj._node.style.fontSize = '24px';
+          } else if (v === 'title') {
+            obj._node.style.color = 'white';
+            obj._node.style.fontSize = '34px';
+            obj._node.style.fontWeight = '700';
+          }
+        }
+      });
+
+      screen.appendChild(node);
+      return obj;
+    };
+
+    function Style(opts) {
+      window.__styles__ = window.__styles__ || {};
+      window.__styles__[opts.name] = opts;
+    }
+
+    function makeFallbackConfig() {
+      return {
+        autolapse: false,
+        autopoop: false,
+        autoclose: false,
+        music: true,
+        jb_behavior: 0,
+        theme: 'default'
+      };
+    }
+
+    var STORAGE_KEY = 'web-kit-config';
+
+    function loadConfig() {
+      var cfg = makeFallbackConfig();
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            if (typeof parsed.autolapse === 'boolean') cfg.autolapse = parsed.autolapse;
+            if (typeof parsed.autopoop === 'boolean') cfg.autopoop = parsed.autopoop;
+            if (typeof parsed.autoclose === 'boolean') cfg.autoclose = parsed.autoclose;
+            if (typeof parsed.music === 'boolean') cfg.music = parsed.music;
+            if (typeof parsed.jb_behavior === 'number') cfg.jb_behavior = parsed.jb_behavior;
+            if (typeof parsed.theme === 'string') cfg.theme = parsed.theme;
+          }
+        }
+      } catch (e) {}
+      return cfg;
+    }
+
+    function saveConfig(cfg) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      } catch (e) {}
+    }
+
+    var config = loadConfig();
+
+    var baseImg = resolveAsset('./img/');
+    var normalButtonImg = baseImg + 'button_over_9.png';
+    var selectedButtonImg = baseImg + 'button_over_9.png';
+
+    var titleLogo = new Image({
+      url: baseImg + 'logo.png',
+      x: 960 - 300,
+      y: 30,
+      width: 600,
+      height: 338
+    });
+    jsmaf.root.children.push(titleLogo);
+
+    var title = new jsmaf.Text();
+    title.text = 'Config';
+    title.x = 905;
+    title.y = 120;
+    title.style = 'title';
+    jsmaf.root.children.push(title);
+
+    var subtitle = new jsmaf.Text();
+    subtitle.text = 'Tap a setting to change it';
+    subtitle.x = 810;
+    subtitle.y = 175;
+    subtitle.style = 'white';
+    jsmaf.root.children.push(subtitle);
+
+    var options = [
+      {
+        key: 'autolapse',
+        label: 'Auto Lapse',
+        type: 'toggle'
+      },
+      {
+        key: 'autopoop',
+        label: 'Auto Poop',
+        type: 'toggle'
+      },
+      {
+        key: 'autoclose',
+        label: 'Auto Close',
+        type: 'toggle'
+      },
+      {
+        key: 'music',
+        label: 'Music',
+        type: 'toggle'
+      },
+      {
+        key: 'jb_behavior',
+        label: 'JB Behavior',
+        type: 'cycle',
+        values: ['Auto', 'Netctrl', 'Lapse']
+      },
+      {
+        key: 'theme',
+        label: 'Theme',
+        type: 'cycle',
+        values: ['default', 'dark', 'neon']
+      }
+    ];
+
+    var buttons = [];
+    var labels = [];
+    var values = [];
+    var buttonOrigPos = [];
+    var labelOrigPos = [];
+    var valueOrigPos = [];
+
+    var currentButton = 0;
+    var prevButton = -1;
+    var buttonWidth = 720;
+    var buttonHeight = 84;
+    var startY = 240;
+    var spacing = 106;
+
+    function createButtonRow(index) {
+      var opt = options[index];
+      var x = 960 - buttonWidth / 2;
+      var y = startY + index * spacing;
+
+      var btn = new Image({
+        url: normalButtonImg,
+        x: x,
+        y: y,
+        width: buttonWidth,
+        height: buttonHeight,
+        interactive: true,
+        onPress: function () {
+          currentButton = index;
+          updateHighlight();
+          handleButtonPress();
+        }
+      });
+      buttons.push(btn);
+      jsmaf.root.children.push(btn);
+
+      var label = new jsmaf.Text();
+      label.text = opt.label;
+      label.x = x + 30;
+      label.y = y + 28;
+      label.style = 'white';
+      labels.push(label);
+      jsmaf.root.children.push(label);
+
+      var value = new jsmaf.Text();
+      value.style = 'white';
+      value.x = x + 450;
+      value.y = y + 28;
+      values.push(value);
+      jsmaf.root.children.push(value);
+
+      buttonOrigPos.push({ x: x, y: y });
+      labelOrigPos.push({ x: label.x, y: label.y });
+      valueOrigPos.push({ x: value.x, y: value.y });
+    }
+
+    for (var i = 0; i < options.length; i++) createButtonRow(i);
+
+    var backButton = new Image({
+      url: normalButtonImg,
+      x: 960 - 220,
+      y: 850,
+      width: 440,
+      height: 84,
+      interactive: true,
+      onPress: function () {
+        goBack();
+      }
+    });
+    buttons.push(backButton);
+    jsmaf.root.children.push(backButton);
+
+    var backText = new jsmaf.Text();
+    backText.text = 'Exit';
+    backText.x = 960 - 40;
+    backText.y = 878;
+    backText.style = 'white';
+    labels.push(backText);
+    values.push(null);
+    jsmaf.root.children.push(backText);
+
+    buttonOrigPos.push({ x: 960 - 220, y: 850 });
+    labelOrigPos.push({ x: backText.x, y: backText.y });
+    valueOrigPos.push({ x: 0, y: 0 });
+
+    function getValueText(opt) {
+      if (opt.type === 'toggle') {
+        return config[opt.key] ? 'ON' : 'OFF';
+      }
+      if (opt.key === 'jb_behavior') {
+        return opt.values[config.jb_behavior] || opt.values[0];
+      }
+      if (opt.key === 'theme') {
+        return (config.theme || 'default').toUpperCase();
+      }
+      return '';
+    }
+
+    function updateValue(index) {
+      var opt = options[index];
+      if (!opt || !values[index]) return;
+      values[index].text = getValueText(opt);
+      values[index].x = valueOrigPos[index].x;
+      values[index].y = valueOrigPos[index].y;
+    }
+
+    function updateAllValues() {
+      for (var i = 0; i < options.length; i++) updateValue(i);
+    }
+
+    function animateZoomIn(btn, textA, textB, btnOrigX, btnOrigY, textOrigXA, textOrigYA, textOrigXB, textOrigYB) {
+      var btnW = buttonWidth;
+      var btnH = buttonHeight;
+      var startScale = btn.scaleX || 1.0;
+      var endScale = 1.08;
+      var duration = 160;
+      var elapsed = 0;
+      var step = 16;
+
+      if (animateZoomIn._interval) jsmaf.clearInterval(animateZoomIn._interval);
+
+      animateZoomIn._interval = jsmaf.setInterval(function () {
+        elapsed += step;
+        var t = Math.min(elapsed / duration, 1);
+        var eased = (1 - Math.cos(t * Math.PI)) / 2;
+        var scale = startScale + (endScale - startScale) * eased;
+
+        btn.scaleX = scale;
+        btn.scaleY = scale;
+        btn.x = btnOrigX - btnW * (scale - 1) / 2;
+        btn.y = btnOrigY - btnH * (scale - 1) / 2;
+
+        if (textA) {
+          textA.scaleX = scale;
+          textA.scaleY = scale;
+          textA.x = textOrigXA - btnW * (scale - 1) / 2;
+          textA.y = textOrigYA - btnH * (scale - 1) / 2;
+        }
+
+        if (textB) {
+          textB.scaleX = scale;
+          textB.scaleY = scale;
+          textB.x = textOrigXB - btnW * (scale - 1) / 2;
+          textB.y = textOrigYB - btnH * (scale - 1) / 2;
+        }
+
+        if (t >= 1) {
+          jsmaf.clearInterval(animateZoomIn._interval);
+          animateZoomIn._interval = null;
+        }
+      }, step);
+    }
+
+    function animateZoomOut(btn, textA, textB, btnOrigX, btnOrigY, textOrigXA, textOrigYA, textOrigXB, textOrigYB) {
+      var btnW = buttonWidth;
+      var btnH = buttonHeight;
+      var startScale = btn.scaleX || 1.08;
+      var endScale = 1.0;
+      var duration = 160;
+      var elapsed = 0;
+      var step = 16;
+
+      if (animateZoomOut._interval) jsmaf.clearInterval(animateZoomOut._interval);
+
+      animateZoomOut._interval = jsmaf.setInterval(function () {
+        elapsed += step;
+        var t = Math.min(elapsed / duration, 1);
+        var eased = (1 - Math.cos(t * Math.PI)) / 2;
+        var scale = startScale + (endScale - startScale) * eased;
+
+        btn.scaleX = scale;
+        btn.scaleY = scale;
+        btn.x = btnOrigX - btnW * (scale - 1) / 2;
+        btn.y = btnOrigY - btnH * (scale - 1) / 2;
+
+        if (textA) {
+          textA.scaleX = scale;
+          textA.scaleY = scale;
+          textA.x = textOrigXA - btnW * (scale - 1) / 2;
+          textA.y = textOrigYA - btnH * (scale - 1) / 2;
+        }
+
+        if (textB) {
+          textB.scaleX = scale;
+          textB.scaleY = scale;
+          textB.x = textOrigXB - btnW * (scale - 1) / 2;
+          textB.y = textOrigYB - btnH * (scale - 1) / 2;
+        }
+
+        if (t >= 1) {
+          jsmaf.clearInterval(animateZoomOut._interval);
+          animateZoomOut._interval = null;
+        }
+      }, step);
+    }
+
+    function updateHighlight() {
+      var prev = buttons[prevButton];
+      if (prevButton >= 0 && prevButton !== currentButton && prev) {
+        prev.url = normalButtonImg;
+        prev.alpha = 0.7;
+        prev.borderColor = 'transparent';
+        prev.borderWidth = 0;
+        animateZoomOut(
+          prev,
+          labels[prevButton],
+          values[prevButton],
+          buttonOrigPos[prevButton].x,
+          buttonOrigPos[prevButton].y,
+          labelOrigPos[prevButton].x,
+          labelOrigPos[prevButton].y,
+          valueOrigPos[prevButton].x,
+          valueOrigPos[prevButton].y
+        );
+      }
+
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        if (!btn) continue;
+
+        if (i === currentButton) {
+          btn.url = selectedButtonImg;
+          btn.alpha = 1.0;
+          btn.borderColor = 'rgb(100,180,255)';
+          btn.borderWidth = 3;
+          animateZoomIn(
+            btn,
+            labels[i],
+            values[i],
+            buttonOrigPos[i].x,
+            buttonOrigPos[i].y,
+            labelOrigPos[i].x,
+            labelOrigPos[i].y,
+            valueOrigPos[i].x,
+            valueOrigPos[i].y
+          );
+        } else if (i !== prevButton) {
+          btn.url = normalButtonImg;
+          btn.alpha = 0.7;
+          btn.borderColor = 'transparent';
+          btn.borderWidth = 0;
+          btn.scaleX = 1.0;
+          btn.scaleY = 1.0;
+          btn.x = buttonOrigPos[i].x;
+          btn.y = buttonOrigPos[i].y;
+          if (labels[i]) {
+            labels[i].scaleX = 1.0;
+            labels[i].scaleY = 1.0;
+            labels[i].x = labelOrigPos[i].x;
+            labels[i].y = labelOrigPos[i].y;
+          }
+          if (values[i]) {
+            values[i].scaleX = 1.0;
+            values[i].scaleY = 1.0;
+            values[i].x = valueOrigPos[i].x;
+            values[i].y = valueOrigPos[i].y;
+          }
         }
       }
-      updateValueText(currentButton);
-      saveConfig();
+
+      prevButton = currentButton;
     }
-  }
-  var confirmKey = jsmaf.circleIsAdvanceButton ? 13 : 14;
-  var backKey = jsmaf.circleIsAdvanceButton ? 14 : 13;
-  jsmaf.onKeyDown = function(keyCode){
-    if (keyCode === 6 || keyCode === 5){ currentButton = (currentButton + 1) % buttons.length; updateHighlight(); }
-    else if (keyCode === 4 || keyCode === 7){ currentButton = (currentButton - 1 + buttons.length) % buttons.length; updateHighlight(); }
-    else if (keyCode === confirmKey) handleButtonPress();
-    else if (keyCode === backKey){
-      saveConfig();
-      try { window.location.href = 'main.html'; } catch(e){ include('main.html').catch(function(){}); }
+
+    function cycleTheme() {
+      var themeList = ['default', 'dark', 'neon'];
+      var idx = themeList.indexOf(config.theme);
+      if (idx < 0) idx = 0;
+      config.theme = themeList[(idx + 1) % themeList.length];
     }
-  };
-  updateHighlight();
-  loadConfig();
-  log(lang.configLoaded || 'Config loaded');
-})();
-})();
+
+    function handleButtonPress() {
+      var opt = options[currentButton];
+      if (!opt) return;
+
+      if (opt.type === 'toggle') {
+        config[opt.key] = !config[opt.key];
+      } else if (opt.type === 'cycle') {
+        if (opt.key === 'jb_behavior') {
+          config.jb_behavior = (config.jb_behavior + 1) % opt.values.length;
+        } else if (opt.key === 'theme') {
+          cycleTheme();
+        }
+      }
+
+      saveConfig(config);
+      updateAllValues();
+      updateHighlight();
+    }
+
+    function goBack() {
+      saveConfig(config);
+      navigateTo('main.html');
+    }
+
+    jsmaf.onKeyDown = function (keyCode) {
+      if (keyCode === 6 || keyCode === 5) {
+        currentButton = (currentButton + 1) % buttons.length;
+        updateHighlight();
+      } else if (keyCode === 4 || keyCode === 7) {
+        currentButton = (currentButton - 1 + buttons.length) % buttons.length;
+        updateHighlight();
+      } else if (keyCode === 14 || keyCode === 13) {
+        if (currentButton === buttons.length - 1) goBack();
+        else handleButtonPress();
+      }
+    };
+
+    updateAllValues();
+    updateScale();
+    updateHighlight();
+
+    window.addEventListener('load', function () {
+      updateScale();
+    });
+  })();
   </script>
 </body>
 </html>
