@@ -126,6 +126,11 @@
       return new URL(path, scriptBaseURL()).href;
     }
 
+    function navigateTo(target) {
+      var url = new URL(target, scriptBaseURL()).href;
+      window.location.href = url;
+    }
+
     function include(path) {
       var p = path;
       if (!/\.[a-z0-9]+$/i.test(p)) p = p + '.html';
@@ -149,7 +154,6 @@
       var availableW = window.innerWidth;
       var availableH = window.innerHeight;
       var scale = Math.min(availableW / designW, availableH / designH);
-
       screen.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
     }
 
@@ -163,61 +167,19 @@
       var lastPressAt = 0;
       function fire(ev) {
         var now = Date.now();
-        if (now - lastPressAt < 400) return;
+        if (now - lastPressAt < 300) return;
         lastPressAt = now;
 
         if (ev && ev.preventDefault) ev.preventDefault();
         if (ev && ev.stopPropagation) ev.stopPropagation();
 
-        try {
-          startBgmIfEnabled();
-        } catch (e) {}
-
+        startBgmIfEnabled();
         handler(ev);
       }
 
       node.addEventListener('pointerup', fire, { passive: false });
       node.addEventListener('touchend', fire, { passive: false });
       node.addEventListener('click', fire, { passive: false });
-    }
-
-    function createImageNode(obj) {
-      var wrapperGlow = document.createElement('div');
-      wrapperGlow.className = 'rgb-glow';
-      wrapperGlow.style.display = 'none';
-      screen.appendChild(wrapperGlow);
-
-      var img = document.createElement('img');
-      img.className = 'ui-img';
-      img.style.position = 'absolute';
-      img.draggable = false;
-      img.style.pointerEvents = obj.interactive ? 'auto' : 'none';
-      if (obj.interactive) img.classList.add('interactive');
-      if (obj.url) img.src = obj.url;
-
-      updateNodeFromObj(img, obj);
-      img._glow = wrapperGlow;
-      screen.appendChild(img);
-      img.style.zIndex = 2;
-      wrapperGlow.style.zIndex = 1;
-
-      if (obj.interactive && typeof obj.onPress === 'function') {
-        wirePress(img, obj.onPress);
-      }
-
-      return img;
-    }
-
-    function createTextNode(obj) {
-      var div = document.createElement('div');
-      div.className = 'ui-text';
-      div.style.pointerEvents = 'none';
-      div.style.whiteSpace = 'nowrap';
-      updateNodeFromObj(div, obj);
-      if (obj.text) div.textContent = obj.text;
-      div.style.zIndex = 3;
-      screen.appendChild(div);
-      return div;
     }
 
     function updateNodeFromObj(node, obj) {
@@ -260,6 +222,45 @@
         glow.style.display = (obj.__glowVisible) ? 'block' : 'none';
         glow.style.opacity = (obj._glowOpacity !== undefined) ? obj._glowOpacity : 0.95;
       }
+    }
+
+    function createImageNode(obj) {
+      var wrapperGlow = document.createElement('div');
+      wrapperGlow.className = 'rgb-glow';
+      wrapperGlow.style.display = 'none';
+      screen.appendChild(wrapperGlow);
+
+      var img = document.createElement('img');
+      img.className = 'ui-img';
+      img.style.position = 'absolute';
+      img.draggable = false;
+      img.style.pointerEvents = obj.interactive ? 'auto' : 'none';
+      if (obj.interactive) img.classList.add('interactive');
+      if (obj.url) img.src = obj.url;
+
+      updateNodeFromObj(img, obj);
+      img._glow = wrapperGlow;
+      screen.appendChild(img);
+      img.style.zIndex = 2;
+      wrapperGlow.style.zIndex = 1;
+
+      if (obj.interactive && typeof obj.onPress === 'function') {
+        wirePress(img, obj.onPress);
+      }
+
+      return img;
+    }
+
+    function createTextNode(obj) {
+      var div = document.createElement('div');
+      div.className = 'ui-text';
+      div.style.pointerEvents = 'none';
+      div.style.whiteSpace = 'nowrap';
+      updateNodeFromObj(div, obj);
+      if (obj.text) div.textContent = obj.text;
+      div.style.zIndex = 3;
+      screen.appendChild(div);
+      return div;
     }
 
     window.Image = function (opts) {
@@ -361,74 +362,35 @@
     var useImageText = false;
     var textImageBase = baseImg + 'text_';
 
-    var bgmPlayers = [];
+    var bgm = new Audio('https://raw.githubusercontent.com/MexrlDev/web-kit/refs/heads/main/default/music/bgm.mp3');
+    bgm.loop = true;
+    bgm.preload = 'auto';
+    bgm.volume = 0.5;
+    bgm.playsInline = true;
+
     var bgmStarted = false;
-
-    function buildBgmPlayers() {
-      bgmPlayers = [];
-      var a = new Audio('https://raw.githubusercontent.com/MexrlDev/web-kit/refs/heads/main/default/music/bgm.mp3');
-      a.loop = true;
-      a.preload = 'auto';
-      a.volume = 0.5;
-      a.playsInline = true;
-      bgmPlayers.push(a);
-    }
-
     function startBgmIfEnabled() {
       if (bgmStarted) return;
       bgmStarted = true;
-
-      function tryPlay(index) {
-        if (index >= bgmPlayers.length) return;
-        var audio = bgmPlayers[index];
-
-        try {
-          var p = audio.play();
-          if (p && typeof p.catch === 'function') {
-            p.catch(function () {
-              tryPlay(index + 1);
-            });
-          }
-        } catch (e) {
-          tryPlay(index + 1);
-        }
+      var attempt = bgm.play();
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(function () {
+          bgmStarted = false;
+        });
       }
-
-      tryPlay(0);
     }
 
     function pauseBgm() {
-      for (var i = 0; i < bgmPlayers.length; i++) {
-        try { bgmPlayers[i].pause(); } catch (e) {}
-      }
+      try { bgm.pause(); } catch (e) {}
     }
 
-    buildBgmPlayers();
-
     ['pointerdown', 'touchstart', 'keydown'].forEach(function (evt) {
-      window.addEventListener(evt, function () {
-        startBgmIfEnabled();
-      }, { passive: true });
+      window.addEventListener(evt, startBgmIfEnabled, { passive: true });
     });
-
+    window.addEventListener('beforeunload', pauseBgm);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) startBgmIfEnabled();
     });
-
-    window.addEventListener('beforeunload', pauseBgm);
-
-    include('languages.html').catch(function () {
-      window.lang = {
-        loadingMainMenu: 'Loading main menu...',
-        jailbreak: 'Jailbreak',
-        payloadMenu: 'Payloads',
-        config: 'Config',
-        exit: 'Exit',
-        mainMenuLoaded: 'Main menu loaded'
-      };
-    });
-
-    log((window.lang && window.lang.loadingMainMenu) || 'Loading main menu...');
 
     var currentButton = 0;
     var buttons = [];
@@ -465,9 +427,30 @@
     jsmaf.root.children.push(logo);
 
     var menuOptions = [
-      { label: (window.lang && window.lang.jailbreak) || 'Jailbreak', action: 'openUrl', url: 'https://mexrldev.github.io/Y3ah/andr2.0/index.html', imgKey: 'jailbreak' },
-      { label: (window.lang && window.lang.payloadMenu) || 'Payloads', action: 'include', script: 'payload_host.html', imgKey: 'payloadMenu' },
-      { label: (window.lang && window.lang.config) || 'Config', action: 'include', script: 'config_ui.html', imgKey: 'config' }
+      {
+        label: 'Jailbreak',
+        action: 'navigate',
+        target: 'https://mexrldev.github.io/Y3ah/andr2.0/index.html',
+        imgKey: 'jailbreak'
+      },
+      {
+        label: 'Payloads',
+        action: 'navigate',
+        target: 'payload_host.html',
+        imgKey: 'payloadMenu'
+      },
+      {
+        label: 'Config',
+        action: 'navigate',
+        target: 'config_ui.html',
+        imgKey: 'config'
+      },
+      {
+        label: 'Exit',
+        action: 'navigate',
+        target: 'https://mexrldev.github.io/Y3ah/andr2.0/tools/toolset.html',
+        imgKey: 'exit'
+      }
     ];
 
     var startY = 450;
@@ -541,6 +524,21 @@
           animateZoomOut._interval = null;
         }
       }, step);
+    }
+
+    function openButtonTarget(option) {
+      if (!option) return;
+
+      if (option.action === 'navigate' && option.target) {
+        navigateTo(option.target);
+        return;
+      }
+
+      if (option.action === 'include' && option.target) {
+        include(option.target).catch(function (e) {
+          log('ERROR loading ' + option.target + ': ' + e.message);
+        });
+      }
     }
 
     var prevButton = -1;
@@ -619,54 +617,10 @@
       prevButton = currentButton;
     }
 
-    function openExternal(url) {
-      try {
-        window.location.href = url;
-      } catch (e) {
-        try { window.open(url, '_self'); } catch (err) {}
-      }
-    }
-
     function handleButtonPress() {
-      if (currentButton === buttons.length - 1) {
-        openExternal('https://mexrldev.github.io/Y3ah/andr2.0/tools/toolset.html');
-        return;
-      }
-
-      if (currentButton < menuOptions.length) {
-        var selectedOption = menuOptions[currentButton];
-        if (!selectedOption) return;
-
-        if (selectedOption.action === 'openUrl' && selectedOption.url) {
-          openExternal(selectedOption.url);
-          return;
-        }
-
-        if (selectedOption.action === 'include' && selectedOption.script) {
-          if (
-            selectedOption.script.indexOf('loader') !== -1 ||
-            selectedOption.script.indexOf('jailbreak') !== -1
-          ) {
-            jsmaf.onKeyDown = function () {};
-          }
-
-          try {
-            include(selectedOption.script);
-          } catch (e) {
-            try {
-              include('themes/' + (typeof CONFIG !== 'undefined' && CONFIG.theme ? CONFIG.theme : 'default') + '/' + selectedOption.script);
-            } catch (err) {
-              log('ERROR loading ' + selectedOption.script + ': ' + err.message);
-            }
-          }
-        }
-      }
-    }
-
-    function setSelectedButton(index, activate) {
-      currentButton = index;
-      updateHighlight();
-      if (activate) handleButtonPress();
+      var option = menuOptions[currentButton];
+      if (!option) return;
+      openButtonTarget(option);
     }
 
     jsmaf.onKeyDown = function (keyCode) {
@@ -696,7 +650,9 @@
           height: buttonHeight,
           interactive: true,
           onPress: function () {
-            setSelectedButton(index, true);
+            currentButton = index;
+            updateHighlight();
+            handleButtonPress();
           }
         });
         buttons.push(button);
@@ -738,60 +694,11 @@
       })(i);
     }
 
-    var exitX = centerX - buttonWidth / 2;
-    var exitY = startY + menuOptions.length * buttonSpacing + 100;
-
-    var exitButton = new Image({
-      url: normalButtonImg,
-      x: exitX,
-      y: exitY,
-      width: buttonWidth,
-      height: buttonHeight,
-      interactive: true,
-      onPress: function () {
-        setSelectedButton(buttons.length - 1, true);
-      }
-    });
-    buttons.push(exitButton);
-    jsmaf.root.children.push(exitButton);
-
-    var exitMarker = new Image({
-      url: baseImg + 'ad_pod_marker.png',
-      x: exitX + buttonWidth - 50,
-      y: exitY + 35,
-      width: 12,
-      height: 12,
-      visible: false
-    });
-    buttonMarkers.push(exitMarker);
-    jsmaf.root.children.push(exitMarker);
-
-    var exitText;
-    if (useImageText) {
-      exitText = new Image({
-        url: textImageBase + 'exit.png',
-        x: exitX + 20,
-        y: exitY + 15,
-        width: 300,
-        height: 50
-      });
-    } else {
-      exitText = new jsmaf.Text();
-      exitText.text = (window.lang && window.lang.exit) || 'Exit';
-      exitText.x = exitX + buttonWidth / 2 - 20;
-      exitText.y = exitY + buttonHeight / 2 - 12;
-      exitText.style = 'white';
-    }
-
-    buttonTexts.push(exitText);
-    jsmaf.root.children.push(exitText);
-    buttonOrigPos.push({ x: exitX, y: exitY });
-    textOrigPos.push({ x: exitText.x, y: exitText.y });
-
     updateScale();
     updateHighlight();
+    startBgmIfEnabled();
 
-    log((window.lang && window.lang.mainMenuLoaded) || 'Main menu loaded');
+    log('Main menu loaded');
   })();
   </script>
 </body>
