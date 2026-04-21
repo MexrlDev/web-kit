@@ -1,43 +1,137 @@
-<!--
-
-Original code and rights go to to https://github.com/Vuemony/vue-after-free/releases/tag/2.0 
-
--->
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
   <title>main</title>
   <style>
-    html,body { height:100%; margin:0; background:#000; font-family: Arial, Helvetica, sans-serif; }
-    #viewport { width:100vw; height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-    #screen { position: relative; width:1920px; height:1080px; overflow: hidden; background: #000; image-rendering: pixelated; transform-origin: center center; }
-    .ui-img, .ui-text { position:absolute; transform-origin:left top; will-change: transform, opacity, left, top; pointer-events: none; }
-    .ui-text { display:flex; align-items:center; justify-content:center; font-weight:600; text-shadow: 0 1px 0 rgba(0,0,0,0.8); pointer-events:none; color:white; }
-    .rgb-glow { position:absolute; z-index:1; border-radius:8px; filter: blur(8px) saturate(1.5); pointer-events:none; opacity:0.95; background: conic-gradient(#ff0000,#ff8800,#ffee00,#88ff00,#00ffee,#0000ff,#8800ff,#ff0088,#ff0000); mask: radial-gradient(circle, transparent 60%, black 61%); -webkit-mask: radial-gradient(circle, transparent 60%, black 61%); animation: spin 3000ms linear infinite; transform-origin:center; display:none; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, Helvetica, sans-serif;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      touch-action: none;
+    }
+
+    #screen {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #000;
+      image-rendering: pixelated;
+      transform-origin: center center;
+      will-change: transform;
+    }
+
+    .ui-img, .ui-text {
+      position: absolute;
+      transform-origin: left top;
+      will-change: transform, opacity, left, top;
+    }
+
+    .ui-img {
+      pointer-events: none;
+      image-rendering: pixelated;
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+
+    .ui-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.8);
+      pointer-events: none;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .rgb-glow {
+      position: absolute;
+      z-index: 1;
+      border-radius: 8px;
+      filter: blur(8px) saturate(1.5);
+      pointer-events: none;
+      opacity: 0.95;
+      background: conic-gradient(
+        #ff0000,
+        #ff8800,
+        #ffee00,
+        #88ff00,
+        #00ffee,
+        #0000ff,
+        #8800ff,
+        #ff0088,
+        #ff0000
+      );
+      mask: radial-gradient(circle, transparent 60%, black 61%);
+      -webkit-mask: radial-gradient(circle, transparent 60%, black 61%);
+      animation: spin 3000ms linear infinite;
+      transform-origin: center;
+      display: none;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .interactive {
+      pointer-events: auto !important;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body>
   <div id="viewport">
     <div id="screen" aria-hidden="false"></div>
   </div>
+
   <script>
   (function () {
     'use strict';
-    window.log = function () { console.log.apply(console, arguments); };
+
+    window.log = function () {
+      console.log.apply(console, arguments);
+    };
+
     function scriptBaseURL() {
       var cur = document.currentScript && document.currentScript.src;
       if (!cur) cur = window.location.href;
       return new URL('.', cur).href;
     }
+
+    function resolveAsset(path) {
+      return new URL(path, scriptBaseURL()).href;
+    }
+
     function include(path) {
       var p = path;
       if (!/\.[a-z0-9]+$/i.test(p)) p = p + '.html';
       if (/\.js$/i.test(p)) p = p.replace(/\.js$/i, '.html');
       var resolved = new URL(p, scriptBaseURL()).href;
+
       return fetch(resolved).then(function (r) {
         if (!r.ok) throw new Error('Failed to fetch ' + resolved + ' (' + r.status + ')');
         return r.text();
@@ -46,212 +140,349 @@ Original code and rights go to to https://github.com/Vuemony/vue-after-free/rele
         return true;
       });
     }
-    window.jsmaf = { root: { children: [] }, setInterval: function (fn,t){return window.setInterval(fn,t);}, clearInterval: function(id){window.clearInterval(id);}, onKeyDown: null, setTimeout: window.setTimeout, circleIsAdvanceButton: false, XMLHttpRequest: window.XMLHttpRequest };
+
     var screen = document.getElementById('screen');
+
+    function updateScale() {
+      var designW = 1920;
+      var designH = 1080;
+      var availableW = window.innerWidth;
+      var availableH = window.innerHeight;
+      var scale = Math.min(availableW / designW, availableH / designH);
+
+      screen.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    }
+
+    window.addEventListener('resize', updateScale);
+    window.addEventListener('orientationchange', updateScale);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateScale);
+    }
+
+    function wirePress(node, handler) {
+      var lastPressAt = 0;
+      function fire(ev) {
+        var now = Date.now();
+        if (now - lastPressAt < 400) return;
+        lastPressAt = now;
+
+        if (ev && ev.preventDefault) ev.preventDefault();
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+
+        try {
+          startBgmIfEnabled();
+        } catch (e) {}
+
+        handler(ev);
+      }
+
+      node.addEventListener('pointerup', fire, { passive: false });
+      node.addEventListener('touchend', fire, { passive: false });
+      node.addEventListener('click', fire, { passive: false });
+    }
+
     function createImageNode(obj) {
       var wrapperGlow = document.createElement('div');
       wrapperGlow.className = 'rgb-glow';
       wrapperGlow.style.display = 'none';
       screen.appendChild(wrapperGlow);
+
       var img = document.createElement('img');
       img.className = 'ui-img';
       img.style.position = 'absolute';
       img.draggable = false;
-      img.style.pointerEvents = 'none';
+      img.style.pointerEvents = obj.interactive ? 'auto' : 'none';
+      if (obj.interactive) img.classList.add('interactive');
       if (obj.url) img.src = obj.url;
+
       updateNodeFromObj(img, obj);
       img._glow = wrapperGlow;
       screen.appendChild(img);
       img.style.zIndex = 2;
       wrapperGlow.style.zIndex = 1;
+
+      if (obj.interactive && typeof obj.onPress === 'function') {
+        wirePress(img, obj.onPress);
+      }
+
       return img;
     }
+
     function createTextNode(obj) {
       var div = document.createElement('div');
       div.className = 'ui-text';
-      div.style.whiteSpace = 'nowrap';
       div.style.pointerEvents = 'none';
+      div.style.whiteSpace = 'nowrap';
       updateNodeFromObj(div, obj);
       if (obj.text) div.textContent = obj.text;
       div.style.zIndex = 3;
       screen.appendChild(div);
       return div;
     }
+
     function updateNodeFromObj(node, obj) {
       node.style.display = (obj.visible === false) ? 'none' : 'block';
       node.style.opacity = (typeof obj.alpha === 'number') ? obj.alpha : '1';
+
       var x = (typeof obj.x === 'number') ? obj.x : 0;
       var y = (typeof obj.y === 'number') ? obj.y : 0;
       var w = (typeof obj.width === 'number') ? obj.width : (node.naturalWidth || 0);
       var h = (typeof obj.height === 'number') ? obj.height : (node.naturalHeight || 0);
       var sx = (typeof obj.scaleX === 'number') ? obj.scaleX : 1;
       var sy = (typeof obj.scaleY === 'number') ? obj.scaleY : sx;
+
       node.style.left = x + 'px';
       node.style.top = y + 'px';
       node.style.width = w + 'px';
       node.style.height = h + 'px';
       node.style.transform = 'scale(' + sx + ',' + sy + ')';
+
       if (obj.borderWidth && obj.borderColor) {
         node.style.border = obj.borderWidth + 'px solid ' + obj.borderColor;
         node.style.boxSizing = 'border-box';
       } else {
         node.style.border = 'none';
       }
+
       if (node._glow) {
         var glow = node._glow;
         var gx = x - 8;
         var gy = y - 8;
         var gw = (w * sx) + 16;
         var gh = (h * sy) + 16;
+        var br = Math.max(6, Math.min(24, Math.round(Math.min(gw, gh) * 0.06)));
+
         glow.style.left = gx + 'px';
         glow.style.top = gy + 'px';
         glow.style.width = gw + 'px';
         glow.style.height = gh + 'px';
-        var br = Math.max(6, Math.min(24, Math.round(Math.min(gw, gh) * 0.06)));
         glow.style.borderRadius = br + 'px';
         glow.style.display = (obj.__glowVisible) ? 'block' : 'none';
         glow.style.opacity = (obj._glowOpacity !== undefined) ? obj._glowOpacity : 0.95;
       }
     }
+
     window.Image = function (opts) {
       opts = opts || {};
-      var obj = { url: opts.url || '', x: opts.x || 0, y: opts.y || 0, width: opts.width || (opts.url ? 100 : 0), height: opts.height || (opts.url ? 100 : 0), visible: (typeof opts.visible === 'boolean') ? opts.visible : true, scaleX:1, scaleY:1, alpha:1, borderColor: opts.borderColor || 'transparent', borderWidth: opts.borderWidth || 0, __glowVisible:false };
+      var obj = {
+        url: opts.url || '',
+        x: opts.x || 0,
+        y: opts.y || 0,
+        width: opts.width || (opts.url ? 100 : 0),
+        height: opts.height || (opts.url ? 100 : 0),
+        visible: (typeof opts.visible === 'boolean') ? opts.visible : true,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 1,
+        borderColor: opts.borderColor || 'transparent',
+        borderWidth: opts.borderWidth || 0,
+        __glowVisible: false,
+        interactive: !!opts.interactive,
+        onPress: opts.onPress || null
+      };
+
       var node = createImageNode(obj);
       obj._node = node;
-      Object.defineProperty(obj, 'url', { get:function(){return node.src;}, set:function(v){ node.src = v; } });
-      Object.defineProperty(obj, 'x', { get:function(){return parseFloat(node.style.left)||0;}, set:function(v){ node.style.left = v + 'px'; } });
-      Object.defineProperty(obj, 'y', { get:function(){return parseFloat(node.style.top)||0;}, set:function(v){ node.style.top = v + 'px'; } });
-      Object.defineProperty(obj, 'width', { get:function(){return parseFloat(node.style.width)||0;}, set:function(v){ node.style.width = v + 'px'; } });
-      Object.defineProperty(obj, 'height', { get:function(){return parseFloat(node.style.height)||0;}, set:function(v){ node.style.height = v + 'px'; } });
-      Object.defineProperty(obj, 'visible', { get:function(){return node.style.display !== 'none';}, set:function(v){ node.style.display = v ? 'block' : 'none'; } });
-      Object.defineProperty(obj, 'scaleX', { get:function(){return obj._scaleX||1;}, set:function(v){ obj._scaleX = v; updateNodeFromObj(node,obj); } });
-      Object.defineProperty(obj, 'scaleY', { get:function(){return obj._scaleY||1;}, set:function(v){ obj._scaleY = v; updateNodeFromObj(node,obj); } });
-      Object.defineProperty(obj, 'alpha', { get:function(){return parseFloat(node.style.opacity)||1;}, set:function(v){ node.style.opacity = v; } });
-      Object.defineProperty(obj, 'borderColor', { get:function(){return node.style.borderColor||'transparent';}, set:function(v){ node.style.borderColor = v; updateNodeFromObj(node,obj); } });
-      Object.defineProperty(obj, 'borderWidth', { get:function(){return parseFloat(node.style.borderWidth)||0;}, set:function(v){ node.style.borderWidth = v; updateNodeFromObj(node,obj); } });
-      Object.defineProperty(obj, '__glowVisible', { get:function(){return obj.__glowVisibleFlag||false;}, set:function(v){ obj.__glowVisibleFlag = v; obj._node._glowVisible = v; updateNodeFromObj(node,obj); } });
+
+      Object.defineProperty(obj, 'url', { get: function () { return node.src; }, set: function (v) { node.src = v; } });
+      Object.defineProperty(obj, 'x', { get: function () { return parseFloat(node.style.left) || 0; }, set: function (v) { node.style.left = v + 'px'; } });
+      Object.defineProperty(obj, 'y', { get: function () { return parseFloat(node.style.top) || 0; }, set: function (v) { node.style.top = v + 'px'; } });
+      Object.defineProperty(obj, 'width', { get: function () { return parseFloat(node.style.width) || 0; }, set: function (v) { node.style.width = v + 'px'; } });
+      Object.defineProperty(obj, 'height', { get: function () { return parseFloat(node.style.height) || 0; }, set: function (v) { node.style.height = v + 'px'; } });
+      Object.defineProperty(obj, 'visible', { get: function () { return node.style.display !== 'none'; }, set: function (v) { node.style.display = v ? 'block' : 'none'; } });
+      Object.defineProperty(obj, 'scaleX', { get: function () { return obj._scaleX || 1; }, set: function (v) { obj._scaleX = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, 'scaleY', { get: function () { return obj._scaleY || 1; }, set: function (v) { obj._scaleY = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, 'alpha', { get: function () { return parseFloat(node.style.opacity) || 1; }, set: function (v) { node.style.opacity = v; } });
+      Object.defineProperty(obj, 'borderColor', { get: function () { return node.style.borderColor || 'transparent'; }, set: function (v) { node.style.borderColor = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, 'borderWidth', { get: function () { return parseFloat(node.style.borderWidth) || 0; }, set: function (v) { node.style.borderWidth = v; updateNodeFromObj(node, obj); } });
+      Object.defineProperty(obj, '__glowVisible', {
+        get: function () { return obj.__glowVisibleFlag || false; },
+        set: function (v) { obj.__glowVisibleFlag = v; obj._node._glowVisible = v; updateNodeFromObj(node, obj); }
+      });
+
       screen.appendChild(node);
       return obj;
     };
+
+    window.jsmaf = {
+      root: { children: [] },
+      setInterval: function (fn, t) { return window.setInterval(fn, t); },
+      clearInterval: function (id) { window.clearInterval(id); },
+      onKeyDown: null,
+      setTimeout: window.setTimeout,
+      circleIsAdvanceButton: false,
+      XMLHttpRequest: window.XMLHttpRequest
+    };
+
     jsmaf.Text = function () {
-      var obj = { text:'', x:0, y:0, style:'white', scaleX:1, scaleY:1 };
+      var obj = { text: '', x: 0, y: 0, style: 'white', scaleX: 1, scaleY: 1 };
       var node = createTextNode(obj);
       obj._node = node;
-      Object.defineProperty(obj, 'text', { get:function(){return node.textContent;}, set:function(v){ node.textContent = v; } });
-      Object.defineProperty(obj, 'x', { get:function(){return parseFloat(node.style.left)||0;}, set:function(v){ node.style.left = v + 'px'; } });
-      Object.defineProperty(obj, 'y', { get:function(){return parseFloat(node.style.top)||0;}, set:function(v){ node.style.top = v + 'px'; } });
-      Object.defineProperty(obj, 'scaleX', { get:function(){return obj._scaleX||1;}, set:function(v){ obj._scaleX = v; obj._node.style.transform = 'scale(' + v + ',' + (obj._scaleY||v) + ')'; obj._scaleX = v; } });
-      Object.defineProperty(obj, 'scaleY', { get:function(){return obj._scaleY||1;}, set:function(v){ obj._scaleY = v; obj._node.style.transform = 'scale(' + (obj._scaleX||v) + ',' + v + ')'; obj._scaleY = v; } });
-      Object.defineProperty(obj, 'style', { set:function(v){ if (v === 'white') { obj._node.style.color = 'white'; obj._node.style.fontSize = '24px'; } else if (v === 'title') { obj._node.style.color = 'white'; obj._node.style.fontSize = '32px'; } } });
+
+      Object.defineProperty(obj, 'text', { get: function () { return node.textContent; }, set: function (v) { node.textContent = v; } });
+      Object.defineProperty(obj, 'x', { get: function () { return parseFloat(node.style.left) || 0; }, set: function (v) { node.style.left = v + 'px'; } });
+      Object.defineProperty(obj, 'y', { get: function () { return parseFloat(node.style.top) || 0; }, set: function (v) { node.style.top = v + 'px'; } });
+      Object.defineProperty(obj, 'scaleX', {
+        get: function () { return obj._scaleX || 1; },
+        set: function (v) {
+          obj._scaleX = v;
+          obj._node.style.transform = 'scale(' + v + ',' + (obj._scaleY || v) + ')';
+        }
+      });
+      Object.defineProperty(obj, 'scaleY', {
+        get: function () { return obj._scaleY || 1; },
+        set: function (v) {
+          obj._scaleY = v;
+          obj._node.style.transform = 'scale(' + (obj._scaleX || v) + ',' + v + ')';
+        }
+      });
+      Object.defineProperty(obj, 'style', {
+        set: function (v) {
+          if (v === 'white') {
+            obj._node.style.color = 'white';
+            obj._node.style.fontSize = '24px';
+          } else if (v === 'title') {
+            obj._node.style.color = 'white';
+            obj._node.style.fontSize = '32px';
+          }
+        }
+      });
+
       screen.appendChild(node);
       return obj;
     };
-    function Style(opts){ window.__styles__ = window.__styles__ || {}; window.__styles__[opts.name] = opts; }
-    function updateScale() {
-      var designW = 1920, designH = 1080;
-      var availableW = window.innerWidth;
-      var availableH = window.innerHeight;
-      var scale = Math.min(availableW / designW, availableH / designH);
-      screen.style.transform = 'scale(' + scale + ')';
+
+    function Style(opts) {
+      window.__styles__ = window.__styles__ || {};
+      window.__styles__[opts.name] = opts;
     }
-    window.addEventListener('resize', updateScale);
-    updateScale();
-    window.addEventListener('keydown', function (ev) {
-      if (!jsmaf.onKeyDown) return;
-      var code = null;
-      if (ev.key === 'ArrowDown' || ev.key === 'ArrowRight') code = 6;
-      else if (ev.key === 's') code = 5;
-      else if (ev.key === 'ArrowUp' || ev.key === 'ArrowLeft') code = 4;
-      else if (ev.key === 'w') code = 7;
-      else if (ev.key === 'Enter' || ev.key === ' ') code = 14;
-      if (code !== null) { ev.preventDefault(); try { jsmaf.onKeyDown(code); } catch (e) { console.error(e); } }
-    });
-    var baseImg = new URL('./img/', scriptBaseURL()).href;
+
+    var baseImg = resolveAsset('./img/');
     var useImageText = false;
     var textImageBase = baseImg + 'text_';
-    function startBgmIfEnabled(){}
-    include('languages.html').catch(function(){ window.lang = { loadingMainMenu:'Loading main menu...', jailbreak:'Jailbreak', payloadMenu:'Payloads', config:'Config', exit:'Exit', mainMenuLoaded:'Main menu loaded' }; });
+
+    var bgmPlayers = [];
+    var bgmStarted = false;
+
+    function buildBgmPlayers() {
+      var candidates = [
+        resolveAsset('music/bgm.wav'),
+        resolveAsset('music/bgm.mp3')
+      ];
+
+      bgmPlayers = [];
+      for (var i = 0; i < candidates.length; i++) {
+        var a = new Audio(candidates[i]);
+        a.loop = true;
+        a.preload = 'auto';
+        a.volume = 0.5;
+        a.playsInline = true;
+        bgmPlayers.push(a);
+      }
+    }
+
+    function startBgmIfEnabled() {
+      if (bgmStarted) return;
+      bgmStarted = true;
+
+      function tryPlay(index) {
+        if (index >= bgmPlayers.length) return;
+        var audio = bgmPlayers[index];
+
+        try {
+          var p = audio.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch(function () {
+              tryPlay(index + 1);
+            });
+          }
+        } catch (e) {
+          tryPlay(index + 1);
+        }
+      }
+
+      tryPlay(0);
+    }
+
+    function pauseBgm() {
+      for (var i = 0; i < bgmPlayers.length; i++) {
+        try { bgmPlayers[i].pause(); } catch (e) {}
+      }
+    }
+
+    buildBgmPlayers();
+
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (evt) {
+      window.addEventListener(evt, function () {
+        startBgmIfEnabled();
+      }, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) startBgmIfEnabled();
+    });
+
+    window.addEventListener('beforeunload', pauseBgm);
+
+    include('languages.html').catch(function () {
+      window.lang = {
+        loadingMainMenu: 'Loading main menu...',
+        jailbreak: 'Jailbreak',
+        payloadMenu: 'Payloads',
+        config: 'Config',
+        exit: 'Exit',
+        mainMenuLoaded: 'Main menu loaded'
+      };
+    });
+
     log((window.lang && window.lang.loadingMainMenu) || 'Loading main menu...');
+
     var currentButton = 0;
     var buttons = [];
     var buttonTexts = [];
     var buttonMarkers = [];
     var buttonOrigPos = [];
     var textOrigPos = [];
+
     var normalButtonImg = baseImg + 'button_over_9.png';
     var selectedButtonImg = baseImg + 'button_over_9.png';
+
     jsmaf.root.children.length = 0;
-    new Style({ name:'white', color:'white', size:24 });
-    new Style({ name:'title', color:'white', size:32 });
-    if (typeof startBgmIfEnabled === 'function') startBgmIfEnabled();
-    var background = new Image({ url: baseImg + 'multiview_bg_VAF.png', x:0, y:0, width:1920, height:1080 });
+
+    new Style({ name: 'white', color: 'white', size: 24 });
+    new Style({ name: 'title', color: 'white', size: 32 });
+
+    var background = new Image({
+      url: baseImg + 'multiview_bg_VAF.png',
+      x: 0, y: 0, width: 1920, height: 1080
+    });
     jsmaf.root.children.push(background);
+
     var centerX = 960;
     var logoWidth = 600;
     var logoHeight = 338;
-    var logo = new Image({ url: baseImg + 'logo.png', x: centerX - logoWidth / 2, y: 50, width: logoWidth, height: logoHeight });
+
+    var logo = new Image({
+      url: baseImg + 'logo.png',
+      x: centerX - logoWidth / 2,
+      y: 50,
+      width: logoWidth,
+      height: logoHeight
+    });
     jsmaf.root.children.push(logo);
+
     var menuOptions = [
       { label: (window.lang && window.lang.jailbreak) || 'Jailbreak', script: 'jailbreak.html', imgKey: 'jailbreak' },
       { label: (window.lang && window.lang.payloadMenu) || 'Payloads', script: 'payload_host.html', imgKey: 'payloadMenu' },
       { label: (window.lang && window.lang.config) || 'Config', script: 'config_ui.html', imgKey: 'config' }
     ];
+
     var startY = 450;
     var buttonSpacing = 120;
     var buttonWidth = 400;
     var buttonHeight = 80;
-    for (var i = 0; i < menuOptions.length; i++) {
-      var btnX = centerX - buttonWidth / 2;
-      var btnY = startY + i * buttonSpacing;
-      var button = new Image({ url: normalButtonImg, x: btnX, y: btnY, width: buttonWidth, height: buttonHeight });
-      buttons.push(button);
-      jsmaf.root.children.push(button);
-      var marker = new Image({ url: baseImg + 'ad_pod_marker.png', x: btnX + buttonWidth - 50, y: btnY + 35, width: 12, height: 12, visible: false });
-      buttonMarkers.push(marker);
-      jsmaf.root.children.push(marker);
-      var btnText;
-      if (useImageText) {
-        btnText = new Image({ url: textImageBase + menuOptions[i].imgKey + '.png', x: btnX + 20, y: btnY + 15, width: 300, height: 50 });
-      } else {
-        btnText = new jsmaf.Text();
-        btnText.text = menuOptions[i].label;
-        btnText.x = btnX + buttonWidth / 2 - 60;
-        btnText.y = btnY + buttonHeight / 2 - 12;
-        btnText.style = 'white';
-      }
-      buttonTexts.push(btnText);
-      jsmaf.root.children.push(btnText);
-      buttonOrigPos.push({ x: btnX, y: btnY });
-      textOrigPos.push({ x: btnText.x, y: btnText.y });
-    }
-    var exitX = centerX - buttonWidth / 2;
-    var exitY = startY + menuOptions.length * buttonSpacing + 100;
-    var exitButton = new Image({ url: normalButtonImg, x: exitX, y: exitY, width: buttonWidth, height: buttonHeight });
-    buttons.push(exitButton);
-    jsmaf.root.children.push(exitButton);
-    var exitMarker = new Image({ url: baseImg + 'ad_pod_marker.png', x: exitX + buttonWidth - 50, y: exitY + 35, width: 12, height: 12, visible: false });
-    buttonMarkers.push(exitMarker);
-    jsmaf.root.children.push(exitMarker);
-    var exitText;
-    if (useImageText) {
-      exitText = new Image({ url: textImageBase + 'exit.png', x: exitX + 20, y: exitY + 15, width: 300, height: 50 });
-    } else {
-      exitText = new jsmaf.Text();
-      exitText.text = (window.lang && window.lang.exit) || 'Exit';
-      exitText.x = exitX + buttonWidth / 2 - 20;
-      exitText.y = exitY + buttonHeight / 2 - 12;
-      exitText.style = 'white';
-    }
-    buttonTexts.push(exitText);
-    jsmaf.root.children.push(exitText);
-    buttonOrigPos.push({ x: exitX, y: exitY });
-    textOrigPos.push({ x: exitText.x, y: exitText.y });
-    var zoomInInterval = null;
-    var zoomOutInterval = null;
-    var prevButton = -1;
-    function easeInOut(t) { return (1 - Math.cos(t * Math.PI)) / 2; }
+
     function animateZoomIn(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY) {
-      if (zoomInInterval) jsmaf.clearInterval(zoomInInterval);
       var btnW = buttonWidth;
       var btnH = buttonHeight;
       var startScale = btn.scaleX || 1.0;
@@ -259,24 +490,33 @@ Original code and rights go to to https://github.com/Vuemony/vue-after-free/rele
       var duration = 175;
       var elapsed = 0;
       var step = 16;
-      zoomInInterval = jsmaf.setInterval(function () {
+
+      if (animateZoomIn._interval) jsmaf.clearInterval(animateZoomIn._interval);
+
+      animateZoomIn._interval = jsmaf.setInterval(function () {
         elapsed += step;
         var t = Math.min(elapsed / duration, 1);
-        var eased = easeInOut(t);
+        var eased = (1 - Math.cos(t * Math.PI)) / 2;
         var scale = startScale + (endScale - startScale) * eased;
+
         btn.scaleX = scale;
         btn.scaleY = scale;
         btn.x = btnOrigX - btnW * (scale - 1) / 2;
         btn.y = btnOrigY - btnH * (scale - 1) / 2;
+
         text.scaleX = scale;
         text.scaleY = scale;
         text.x = textOrigX - btnW * (scale - 1) / 2;
         text.y = textOrigY - btnH * (scale - 1) / 2;
-        if (t >= 1 && zoomInInterval) { jsmaf.clearInterval(zoomInInterval); zoomInInterval = null; }
+
+        if (t >= 1) {
+          jsmaf.clearInterval(animateZoomIn._interval);
+          animateZoomIn._interval = null;
+        }
       }, step);
     }
+
     function animateZoomOut(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY) {
-      if (zoomOutInterval) jsmaf.clearInterval(zoomOutInterval);
       var btnW = buttonWidth;
       var btnH = buttonHeight;
       var startScale = btn.scaleX || 1.1;
@@ -284,101 +524,165 @@ Original code and rights go to to https://github.com/Vuemony/vue-after-free/rele
       var duration = 175;
       var elapsed = 0;
       var step = 16;
-      zoomOutInterval = jsmaf.setInterval(function () {
+
+      if (animateZoomOut._interval) jsmaf.clearInterval(animateZoomOut._interval);
+
+      animateZoomOut._interval = jsmaf.setInterval(function () {
         elapsed += step;
         var t = Math.min(elapsed / duration, 1);
-        var eased = easeInOut(t);
+        var eased = (1 - Math.cos(t * Math.PI)) / 2;
         var scale = startScale + (endScale - startScale) * eased;
+
         btn.scaleX = scale;
         btn.scaleY = scale;
         btn.x = btnOrigX - btnW * (scale - 1) / 2;
         btn.y = btnOrigY - btnH * (scale - 1) / 2;
+
         text.scaleX = scale;
         text.scaleY = scale;
         text.x = textOrigX - btnW * (scale - 1) / 2;
         text.y = textOrigY - btnH * (scale - 1) / 2;
-        if (t >= 1 && zoomOutInterval) { jsmaf.clearInterval(zoomOutInterval); zoomOutInterval = null; }
+
+        if (t >= 1) {
+          jsmaf.clearInterval(animateZoomOut._interval);
+          animateZoomOut._interval = null;
+        }
       }, step);
     }
+
+    var prevButton = -1;
+
     function updateHighlight() {
       var prevButtonObj = buttons[prevButton];
       var buttonMarker = buttonMarkers[prevButton];
+
       if (prevButton >= 0 && prevButton !== currentButton && prevButtonObj && buttonMarker) {
         prevButtonObj.url = normalButtonImg;
         prevButtonObj.alpha = 0.7;
         prevButtonObj.borderColor = 'transparent';
         prevButtonObj.borderWidth = 0;
-        if (prevButtonObj._node && prevButtonObj._node._glow) { prevButtonObj.__glowVisible = false; prevButtonObj._node._glow.style.display = 'none'; }
+
+        if (prevButtonObj._node && prevButtonObj._node._glow) {
+          prevButtonObj.__glowVisible = false;
+          prevButtonObj._node._glow.style.display = 'none';
+        }
+
         buttonMarker.visible = false;
-        animateZoomOut(prevButtonObj, buttonTexts[prevButton], buttonOrigPos[prevButton].x, buttonOrigPos[prevButton].y, textOrigPos[prevButton].x, textOrigPos[prevButton].y);
+        animateZoomOut(
+          prevButtonObj,
+          buttonTexts[prevButton],
+          buttonOrigPos[prevButton].x,
+          buttonOrigPos[prevButton].y,
+          textOrigPos[prevButton].x,
+          textOrigPos[prevButton].y
+        );
       }
-      for (var _i = 0; _i < buttons.length; _i++) {
-        var _button = buttons[_i];
-        var _buttonMarker = buttonMarkers[_i];
-        var buttonText = buttonTexts[_i];
-        var buttonOrigPos_ = buttonOrigPos[_i];
-        var textOrigPos_ = textOrigPos[_i];
-        if (_button === undefined || buttonText === undefined || buttonOrigPos_ === undefined || textOrigPos_ === undefined || _buttonMarker === undefined) continue;
-        if (_i === currentButton) {
-          _button.url = selectedButtonImg;
-          _button.alpha = 1.0;
-          _button.borderColor = 'rgb(100,180,255)';
-          _button.borderWidth = 3;
-          if (_button._node && _button._node._glow) { _button.__glowVisible = true; _button._node._glow.style.display = 'block'; }
-          _buttonMarker.visible = true;
-          animateZoomIn(_button, buttonText, buttonOrigPos_.x, buttonOrigPos_.y, textOrigPos_.x, textOrigPos_.y);
-        } else if (_i !== prevButton) {
-          _button.url = normalButtonImg;
-          _button.alpha = 0.7;
-          _button.borderColor = 'transparent';
-          _button.borderWidth = 0;
-          _button.scaleX = 1.0;
-          _button.scaleY = 1.0;
-          _button.x = buttonOrigPos_.x;
-          _button.y = buttonOrigPos_.y;
+
+      for (var i = 0; i < buttons.length; i++) {
+        var button = buttons[i];
+        var marker = buttonMarkers[i];
+        var buttonText = buttonTexts[i];
+        var buttonOrig = buttonOrigPos[i];
+        var textOrig = textOrigPos[i];
+
+        if (!button || !buttonText || !buttonOrig || !textOrig || !marker) continue;
+
+        if (i === currentButton) {
+          button.url = selectedButtonImg;
+          button.alpha = 1.0;
+          button.borderColor = 'rgb(100,180,255)';
+          button.borderWidth = 3;
+
+          if (button._node && button._node._glow) {
+            button.__glowVisible = true;
+            button._node._glow.style.display = 'block';
+          }
+
+          marker.visible = true;
+          animateZoomIn(button, buttonText, buttonOrig.x, buttonOrig.y, textOrig.x, textOrig.y);
+        } else if (i !== prevButton) {
+          button.url = normalButtonImg;
+          button.alpha = 0.7;
+          button.borderColor = 'transparent';
+          button.borderWidth = 0;
+          button.scaleX = 1.0;
+          button.scaleY = 1.0;
+          button.x = buttonOrig.x;
+          button.y = buttonOrig.y;
           buttonText.scaleX = 1.0;
           buttonText.scaleY = 1.0;
-          buttonText.x = textOrigPos_.x;
-          buttonText.y = textOrigPos_.y;
-          if (_button._node && _button._node._glow) { _button.__glowVisible = false; _button._node._glow.style.display = 'none'; }
-          _buttonMarker.visible = false;
+          buttonText.x = textOrig.x;
+          buttonText.y = textOrig.y;
+
+          if (button._node && button._node._glow) {
+            button.__glowVisible = false;
+            button._node._glow.style.display = 'none';
+          }
+
+          marker.visible = false;
         }
       }
+
       prevButton = currentButton;
     }
+
     function closeApp() {
       jsmaf.onKeyDown = null;
       try {
-        window.open('','_self');
+        window.open('', '_self');
         window.close();
       } catch (e) {}
+
       setTimeout(function () {
         try {
           window.location.href = 'about:blank';
         } catch (e) {}
+
         try {
           document.documentElement.innerHTML = '';
         } catch (e) {}
       }, 200);
     }
+
     function handleButtonPress() {
       if (currentButton === buttons.length - 1) {
-        include('includes/kill_vue.html').catch(function(){});
+        include('includes/kill_vue.html').catch(function () {});
         closeApp();
-      } else if (currentButton < menuOptions.length) {
+        return;
+      }
+
+      if (currentButton < menuOptions.length) {
         var selectedOption = menuOptions[currentButton];
         if (!selectedOption) return;
-        if (selectedOption.script && (selectedOption.script.indexOf('loader') !== -1 || selectedOption.script.indexOf('jailbreak') !== -1)) jsmaf.onKeyDown = function () {};
+
+        if (
+          selectedOption.script &&
+          (selectedOption.script.indexOf('loader') !== -1 || selectedOption.script.indexOf('jailbreak') !== -1)
+        ) {
+          jsmaf.onKeyDown = function () {};
+        }
+
         try {
           include(selectedOption.script);
         } catch (e) {
           try {
             include('themes/' + (typeof CONFIG !== 'undefined' && CONFIG.theme ? CONFIG.theme : 'default') + '/' + selectedOption.script);
-          } catch (err) { log('ERROR loading ' + selectedOption.script + ': ' + err.message); }
+          } catch (err) {
+            log('ERROR loading ' + selectedOption.script + ': ' + err.message);
+          }
         }
       }
     }
+
+    function setSelectedButton(index, activate) {
+      currentButton = index;
+      updateHighlight();
+      if (activate) handleButtonPress();
+    }
+
     jsmaf.onKeyDown = function (keyCode) {
+      startBgmIfEnabled();
+
       if (keyCode === 6 || keyCode === 5) {
         currentButton = (currentButton + 1) % buttons.length;
         updateHighlight();
@@ -389,7 +693,115 @@ Original code and rights go to to https://github.com/Vuemony/vue-after-free/rele
         handleButtonPress();
       }
     };
+
+    for (var i = 0; i < menuOptions.length; i++) {
+      (function (index) {
+        var btnX = centerX - buttonWidth / 2;
+        var btnY = startY + index * buttonSpacing;
+
+        var button = new Image({
+          url: normalButtonImg,
+          x: btnX,
+          y: btnY,
+          width: buttonWidth,
+          height: buttonHeight,
+          interactive: true,
+          onPress: function () {
+            setSelectedButton(index, true);
+          }
+        });
+        buttons.push(button);
+        jsmaf.root.children.push(button);
+
+        var marker = new Image({
+          url: baseImg + 'ad_pod_marker.png',
+          x: btnX + buttonWidth - 50,
+          y: btnY + 35,
+          width: 12,
+          height: 12,
+          visible: false
+        });
+        buttonMarkers.push(marker);
+        jsmaf.root.children.push(marker);
+
+        var btnText;
+        if (useImageText) {
+          btnText = new Image({
+            url: textImageBase + menuOptions[index].imgKey + '.png',
+            x: btnX + 20,
+            y: btnY + 15,
+            width: 300,
+            height: 50
+          });
+        } else {
+          btnText = new jsmaf.Text();
+          btnText.text = menuOptions[index].label;
+          btnText.x = btnX + buttonWidth / 2 - 60;
+          btnText.y = btnY + buttonHeight / 2 - 12;
+          btnText.style = 'white';
+        }
+
+        buttonTexts.push(btnText);
+        jsmaf.root.children.push(btnText);
+
+        buttonOrigPos.push({ x: btnX, y: btnY });
+        textOrigPos.push({ x: btnText.x, y: btnText.y });
+      })(i);
+    }
+
+    var exitX = centerX - buttonWidth / 2;
+    var exitY = startY + menuOptions.length * buttonSpacing + 100;
+
+    var exitButton = new Image({
+      url: normalButtonImg,
+      x: exitX,
+      y: exitY,
+      width: buttonWidth,
+      height: buttonHeight,
+      interactive: true,
+      onPress: function () {
+        setSelectedButton(buttons.length - 1, true);
+      }
+    });
+    buttons.push(exitButton);
+    jsmaf.root.children.push(exitButton);
+
+    var exitMarker = new Image({
+      url: baseImg + 'ad_pod_marker.png',
+      x: exitX + buttonWidth - 50,
+      y: exitY + 35,
+      width: 12,
+      height: 12,
+      visible: false
+    });
+    buttonMarkers.push(exitMarker);
+    jsmaf.root.children.push(exitMarker);
+
+    var exitText;
+    if (useImageText) {
+      exitText = new Image({
+        url: textImageBase + 'exit.png',
+        x: exitX + 20,
+        y: exitY + 15,
+        width: 300,
+        height: 50
+      });
+    } else {
+      exitText = new jsmaf.Text();
+      exitText.text = (window.lang && window.lang.exit) || 'Exit';
+      exitText.x = exitX + buttonWidth / 2 - 20;
+      exitText.y = exitY + buttonHeight / 2 - 12;
+      exitText.style = 'white';
+    }
+
+    buttonTexts.push(exitText);
+    jsmaf.root.children.push(exitText);
+    buttonOrigPos.push({ x: exitX, y: exitY });
+    textOrigPos.push({ x: exitText.x, y: exitText.y });
+
+    updateScale();
     updateHighlight();
+
     log((window.lang && window.lang.mainMenuLoaded) || 'Main menu loaded');
   })();
   </script>
