@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>config_ui</title>
+  <title>Config</title>
   <style>
     html, body {
       width: 100%;
@@ -21,10 +21,10 @@
     #viewport {
       position: fixed;
       inset: 0;
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
       background: #000;
       touch-action: none;
     }
@@ -73,7 +73,17 @@
       filter: blur(8px) saturate(1.5);
       pointer-events: none;
       opacity: 0.95;
-      background: conic-gradient(#ff0000,#ff8800,#ffee00,#88ff00,#00ffee,#0000ff,#8800ff,#ff0088,#ff0000);
+      background: conic-gradient(
+        #ff0000,
+        #ff8800,
+        #ffee00,
+        #88ff00,
+        #00ffee,
+        #0000ff,
+        #8800ff,
+        #ff0088,
+        #ff0000
+      );
       mask: radial-gradient(circle, transparent 60%, black 61%);
       -webkit-mask: radial-gradient(circle, transparent 60%, black 61%);
       animation: spin 3000ms linear infinite;
@@ -102,6 +112,11 @@
   (function () {
     'use strict';
 
+    // ----- Framework (same as main menu) -----
+    window.log = function () {
+      console.log.apply(console, arguments);
+    };
+
     function scriptBaseURL() {
       var cur = document.currentScript && document.currentScript.src;
       if (!cur) cur = window.location.href;
@@ -113,12 +128,24 @@
     }
 
     function navigateTo(target) {
-      window.location.href = new URL(target, scriptBaseURL()).href;
+      var url = new URL(target, scriptBaseURL()).href;
+      window.location.href = url;
     }
 
-    window.log = function () {
-      console.log.apply(console, arguments);
-    };
+    function include(path) {
+      var p = path;
+      if (!/\.[a-z0-9]+$/i.test(p)) p = p + '.html';
+      if (/\.js$/i.test(p)) p = p.replace(/\.js$/i, '.html');
+      var resolved = new URL(p, scriptBaseURL()).href;
+
+      return fetch(resolved).then(function (r) {
+        if (!r.ok) throw new Error('Failed to fetch ' + resolved + ' (' + r.status + ')');
+        return r.text();
+      }).then(function (text) {
+        (0, eval)(text);
+        return true;
+      });
+    }
 
     var screen = document.getElementById('screen');
 
@@ -141,12 +168,13 @@
       var lastPressAt = 0;
       function fire(ev) {
         var now = Date.now();
-        if (now - lastPressAt < 250) return;
+        if (now - lastPressAt < 300) return;
         lastPressAt = now;
 
         if (ev && ev.preventDefault) ev.preventDefault();
         if (ev && ev.stopPropagation) ev.stopPropagation();
 
+        startBgmIfEnabled();
         handler(ev);
       }
 
@@ -227,8 +255,8 @@
     function createTextNode(obj) {
       var div = document.createElement('div');
       div.className = 'ui-text';
-      div.style.whiteSpace = 'nowrap';
       div.style.pointerEvents = 'none';
+      div.style.whiteSpace = 'nowrap';
       updateNodeFromObj(div, obj);
       if (obj.text) div.textContent = obj.text;
       div.style.zIndex = 3;
@@ -282,8 +310,8 @@
       root: { children: [] },
       setInterval: function (fn, t) { return window.setInterval(fn, t); },
       clearInterval: function (id) { window.clearInterval(id); },
-      setTimeout: window.setTimeout,
       onKeyDown: null,
+      setTimeout: window.setTimeout,
       circleIsAdvanceButton: false,
       XMLHttpRequest: window.XMLHttpRequest
     };
@@ -317,8 +345,7 @@
             obj._node.style.fontSize = '24px';
           } else if (v === 'title') {
             obj._node.style.color = 'white';
-            obj._node.style.fontSize = '34px';
-            obj._node.style.fontWeight = '700';
+            obj._node.style.fontSize = '32px';
           }
         }
       });
@@ -332,421 +359,510 @@
       window.__styles__[opts.name] = opts;
     }
 
-    function makeFallbackConfig() {
-      return {
-        autolapse: false,
-        autopoop: false,
-        autoclose: false,
-        music: true,
-        jb_behavior: 0,
-        theme: 'default'
-      };
-    }
-
-    var STORAGE_KEY = 'web-kit-config';
-
-    function loadConfig() {
-      var cfg = makeFallbackConfig();
-      try {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          var parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            if (typeof parsed.autolapse === 'boolean') cfg.autolapse = parsed.autolapse;
-            if (typeof parsed.autopoop === 'boolean') cfg.autopoop = parsed.autopoop;
-            if (typeof parsed.autoclose === 'boolean') cfg.autoclose = parsed.autoclose;
-            if (typeof parsed.music === 'boolean') cfg.music = parsed.music;
-            if (typeof parsed.jb_behavior === 'number') cfg.jb_behavior = parsed.jb_behavior;
-            if (typeof parsed.theme === 'string') cfg.theme = parsed.theme;
-          }
-        }
-      } catch (e) {}
-      return cfg;
-    }
-
-    function saveConfig(cfg) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-      } catch (e) {}
-    }
-
-    var config = loadConfig();
-
+    // Asset base URLs (adjust if needed)
     var baseImg = resolveAsset('./img/');
+    var useImageText = false;
+    var textImageBase = baseImg + 'text_';
+
+    // ----- Background Music (same as main menu) -----
+    var bgm = new Audio('https://raw.githubusercontent.com/MexrlDev/web-kit/refs/heads/main/default/music/bgm.mp3');
+    bgm.loop = true;
+    bgm.preload = 'auto';
+    bgm.volume = 0.5;
+    bgm.playsInline = true;
+
+    var bgmStarted = false;
+    function startBgmIfEnabled() {
+      if (bgmStarted) return;
+      bgmStarted = true;
+      var attempt = bgm.play();
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(function () {
+          bgmStarted = false;
+        });
+      }
+    }
+
+    function stopBgm() {
+      try { bgm.pause(); bgm.currentTime = 0; bgmStarted = false; } catch (e) {}
+    }
+
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (evt) {
+      window.addEventListener(evt, startBgmIfEnabled, { passive: true });
+    });
+    window.addEventListener('beforeunload', stopBgm);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && currentConfig.music) startBgmIfEnabled();
+    });
+
+    // ----- Language simulation (replace include('languages.js')) -----
+    var lang = {
+      loadingConfig: 'Loading configuration...',
+      config: 'Settings',
+      autoLapse: 'Auto Lapse',
+      autoPoop: 'Auto Poop',
+      autoClose: 'Auto Close',
+      music: 'Music',
+      jbBehavior: 'JB Behavior',
+      theme: 'Theme',
+      jbBehaviorAuto: 'Auto',
+      jbBehaviorNetctrl: 'Netctrl',
+      jbBehaviorLapse: 'Lapse',
+      configLoaded: 'Configuration loaded.'
+    };
+
+    // Simulate file system with localStorage
+    var fs = {
+      write: function (filename, content, callback) {
+        try {
+          localStorage.setItem('config_' + filename, content);
+          callback(null);
+        } catch (e) {
+          callback(e);
+        }
+      },
+      read: function (filename, callback) {
+        try {
+          var data = localStorage.getItem('config_' + filename);
+          callback(null, data);
+        } catch (e) {
+          callback(e, null);
+        }
+      }
+    };
+
+    // ----- Config state -----
+    var currentConfig = {
+      autolapse: false,
+      autopoop: false,
+      autoclose: false,
+      autoclose_delay: 0,
+      music: true,
+      jb_behavior: 0,
+      theme: 'default'
+    };
+
+    var userPayloads = [];
+    var configLoaded = false;
+    var jbBehaviorLabels = [lang.jbBehaviorAuto, lang.jbBehaviorNetctrl, lang.jbBehaviorLapse];
+    var jbBehaviorImgKeys = ['jbBehaviorAuto', 'jbBehaviorNetctrl', 'jbBehaviorLapse'];
+
+    // Simulate theme scanning (browser-friendly)
+    var availableThemes = ['default', 'dark', 'light']; // could be expanded
+    var themeLabels = availableThemes.map(theme => theme.charAt(0).toUpperCase() + theme.slice(1));
+    var themeImgKeys = availableThemes.map(theme => 'theme' + theme.charAt(0).toUpperCase() + theme.slice(1));
+
+    var currentButton = 0;
+    var buttons = [];
+    var buttonTexts = [];
+    var buttonMarkers = [];
+    var buttonOrigPos = [];
+    var textOrigPos = [];
+    var valueTexts = [];
+
     var normalButtonImg = baseImg + 'button_over_9.png';
     var selectedButtonImg = baseImg + 'button_over_9.png';
 
-    var titleLogo = new Image({
-      url: baseImg + 'logo.png',
-      x: 960 - 300,
-      y: 30,
-      width: 600,
-      height: 338
+    // Clear root children
+    jsmaf.root.children.length = 0;
+
+    new Style({ name: 'white', color: 'white', size: 24 });
+    new Style({ name: 'title', color: 'white', size: 32 });
+
+    // Background
+    var background = new Image({
+      url: baseImg + 'multiview_bg_VAF.png',
+      x: 0, y: 0, width: 1920, height: 1080
     });
-    jsmaf.root.children.push(titleLogo);
+    jsmaf.root.children.push(background);
 
-    var title = new jsmaf.Text();
-    title.text = 'Config';
-    title.x = 905;
-    title.y = 120;
-    title.style = 'title';
-    jsmaf.root.children.push(title);
+    // Logo (top right)
+    var logo = new Image({
+      url: baseImg + 'logo.png',
+      x: 1620, y: 0, width: 300, height: 169
+    });
+    jsmaf.root.children.push(logo);
 
-    var subtitle = new jsmaf.Text();
-    subtitle.text = 'Tap a setting to change it';
-    subtitle.x = 810;
-    subtitle.y = 175;
-    subtitle.style = 'white';
-    jsmaf.root.children.push(subtitle);
+    // Title
+    if (useImageText) {
+      var title = new Image({
+        url: textImageBase + 'config.png',
+        x: 860, y: 100, width: 200, height: 60
+      });
+      jsmaf.root.children.push(title);
+    } else {
+      var titleText = new jsmaf.Text();
+      titleText.text = lang.config;
+      titleText.x = 910;
+      titleText.y = 120;
+      titleText.style = 'title';
+      jsmaf.root.children.push(titleText);
+    }
 
-    var options = [
-      {
-        key: 'autolapse',
-        label: 'Auto Lapse',
-        type: 'toggle'
-      },
-      {
-        key: 'autopoop',
-        label: 'Auto Poop',
-        type: 'toggle'
-      },
-      {
-        key: 'autoclose',
-        label: 'Auto Close',
-        type: 'toggle'
-      },
-      {
-        key: 'music',
-        label: 'Music',
-        type: 'toggle'
-      },
-      {
-        key: 'jb_behavior',
-        label: 'JB Behavior',
-        type: 'cycle',
-        values: ['Auto', 'Netctrl', 'Lapse']
-      },
-      {
-        key: 'theme',
-        label: 'Theme',
-        type: 'cycle',
-        values: ['default', 'dark', 'neon']
-      }
+    // Config options definition
+    var configOptions = [
+      { key: 'autolapse', label: lang.autoLapse, imgKey: 'autoLapse', type: 'toggle' },
+      { key: 'autopoop', label: lang.autoPoop, imgKey: 'autoPoop', type: 'toggle' },
+      { key: 'autoclose', label: lang.autoClose, imgKey: 'autoClose', type: 'toggle' },
+      { key: 'music', label: lang.music, imgKey: 'music', type: 'toggle' },
+      { key: 'jb_behavior', label: lang.jbBehavior, imgKey: 'jbBehavior', type: 'cycle' },
+      { key: 'theme', label: lang.theme, imgKey: 'theme', type: 'cycle' }
     ];
 
-    var buttons = [];
-    var labels = [];
-    var values = [];
-    var buttonOrigPos = [];
-    var labelOrigPos = [];
-    var valueOrigPos = [];
+    var centerX = 960;
+    var startY = 200;
+    var buttonSpacing = 120;
+    var buttonWidth = 400;
+    var buttonHeight = 80;
 
-    var currentButton = 0;
-    var prevButton = -1;
-    var buttonWidth = 720;
-    var buttonHeight = 84;
-    var startY = 240;
-    var spacing = 106;
+    // Create UI elements
+    for (var i = 0; i < configOptions.length; i++) {
+      var opt = configOptions[i];
+      var btnX = centerX - buttonWidth / 2;
+      var btnY = startY + i * buttonSpacing;
 
-    function createButtonRow(index) {
-      var opt = options[index];
-      var x = 960 - buttonWidth / 2;
-      var y = startY + index * spacing;
-
-      var btn = new Image({
+      var button = new Image({
         url: normalButtonImg,
-        x: x,
-        y: y,
-        width: buttonWidth,
-        height: buttonHeight,
+        x: btnX, y: btnY, width: buttonWidth, height: buttonHeight,
         interactive: true,
-        onPress: function () {
-          currentButton = index;
-          updateHighlight();
-          handleButtonPress();
-        }
+        onPress: (function(idx) {
+          return function() {
+            currentButton = idx;
+            updateHighlight();
+            handleButtonPress();
+          };
+        })(i)
       });
-      buttons.push(btn);
-      jsmaf.root.children.push(btn);
+      buttons.push(button);
+      jsmaf.root.children.push(button);
+      buttonMarkers.push(null); // markers not used here
 
-      var label = new jsmaf.Text();
-      label.text = opt.label;
-      label.x = x + 30;
-      label.y = y + 28;
-      label.style = 'white';
-      labels.push(label);
-      jsmaf.root.children.push(label);
-
-      var value = new jsmaf.Text();
-      value.style = 'white';
-      value.x = x + 450;
-      value.y = y + 28;
-      values.push(value);
-      jsmaf.root.children.push(value);
-
-      buttonOrigPos.push({ x: x, y: y });
-      labelOrigPos.push({ x: label.x, y: label.y });
-      valueOrigPos.push({ x: value.x, y: value.y });
-    }
-
-    for (var i = 0; i < options.length; i++) createButtonRow(i);
-
-    var backButton = new Image({
-      url: normalButtonImg,
-      x: 960 - 220,
-      y: 850,
-      width: 440,
-      height: 84,
-      interactive: true,
-      onPress: function () {
-        goBack();
+      var btnText;
+      if (useImageText) {
+        btnText = new Image({
+          url: textImageBase + opt.imgKey + '.png',
+          x: btnX + 20, y: btnY + 15, width: 200, height: 50
+        });
+      } else {
+        btnText = new jsmaf.Text();
+        btnText.text = opt.label;
+        btnText.x = btnX + 30;
+        btnText.y = btnY + 28;
+        btnText.style = 'white';
       }
-    });
-    buttons.push(backButton);
-    jsmaf.root.children.push(backButton);
+      buttonTexts.push(btnText);
+      jsmaf.root.children.push(btnText);
 
-    var backText = new jsmaf.Text();
-    backText.text = 'Exit';
-    backText.x = 960 - 40;
-    backText.y = 878;
-    backText.style = 'white';
-    labels.push(backText);
-    values.push(null);
-    jsmaf.root.children.push(backText);
-
-    buttonOrigPos.push({ x: 960 - 220, y: 850 });
-    labelOrigPos.push({ x: backText.x, y: backText.y });
-    valueOrigPos.push({ x: 0, y: 0 });
-
-    function getValueText(opt) {
+      // Value display (toggle/cycle)
       if (opt.type === 'toggle') {
-        return config[opt.key] ? 'ON' : 'OFF';
+        var checkmark = new Image({
+          url: currentConfig[opt.key] ? baseImg + 'check_small_on.png' : baseImg + 'check_small_off.png',
+          x: btnX + 320, y: btnY + 20, width: 40, height: 40
+        });
+        valueTexts.push(checkmark);
+        jsmaf.root.children.push(checkmark);
+      } else {
+        var valueLabel;
+        if (opt.key === 'jb_behavior') {
+          if (useImageText) {
+            valueLabel = new Image({
+              url: textImageBase + jbBehaviorImgKeys[currentConfig.jb_behavior] + '.png',
+              x: btnX + 230, y: btnY + 15, width: 150, height: 50
+            });
+          } else {
+            valueLabel = new jsmaf.Text();
+            valueLabel.text = jbBehaviorLabels[currentConfig.jb_behavior];
+            valueLabel.x = btnX + 250;
+            valueLabel.y = btnY + 28;
+            valueLabel.style = 'white';
+          }
+        } else { // theme
+          var themeIdx = availableThemes.indexOf(currentConfig.theme);
+          if (themeIdx < 0) themeIdx = 0;
+          if (useImageText) {
+            valueLabel = new Image({
+              url: textImageBase + themeImgKeys[themeIdx] + '.png',
+              x: btnX + 230, y: btnY + 15, width: 150, height: 50
+            });
+          } else {
+            valueLabel = new jsmaf.Text();
+            valueLabel.text = themeLabels[themeIdx];
+            valueLabel.x = btnX + 250;
+            valueLabel.y = btnY + 28;
+            valueLabel.style = 'white';
+          }
+        }
+        valueTexts.push(valueLabel);
+        jsmaf.root.children.push(valueLabel);
       }
-      if (opt.key === 'jb_behavior') {
-        return opt.values[config.jb_behavior] || opt.values[0];
-      }
-      if (opt.key === 'theme') {
-        return (config.theme || 'default').toUpperCase();
-      }
-      return '';
+
+      buttonOrigPos.push({ x: btnX, y: btnY });
+      textOrigPos.push({ x: btnText.x, y: btnText.y });
     }
 
-    function updateValue(index) {
-      var opt = options[index];
-      if (!opt || !values[index]) return;
-      values[index].text = getValueText(opt);
-      values[index].x = valueOrigPos[index].x;
-      values[index].y = valueOrigPos[index].y;
+    // Back hint
+    var backHint = new jsmaf.Text();
+    backHint.text = jsmaf.circleIsAdvanceButton ? 'X to go back' : 'O to go back';
+    backHint.x = centerX - 60;
+    backHint.y = startY + configOptions.length * buttonSpacing + 120;
+    backHint.style = 'white';
+    jsmaf.root.children.push(backHint);
+
+    // Animation state
+    var zoomInInterval = null;
+    var zoomOutInterval = null;
+    var prevButton = -1;
+
+    function easeInOut(t) {
+      return (1 - Math.cos(t * Math.PI)) / 2;
     }
 
-    function updateAllValues() {
-      for (var i = 0; i < options.length; i++) updateValue(i);
-    }
-
-    function animateZoomIn(btn, textA, textB, btnOrigX, btnOrigY, textOrigXA, textOrigYA, textOrigXB, textOrigYB) {
+    function animateZoomIn(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY) {
+      if (zoomInInterval) jsmaf.clearInterval(zoomInInterval);
       var btnW = buttonWidth;
       var btnH = buttonHeight;
       var startScale = btn.scaleX || 1.0;
-      var endScale = 1.08;
-      var duration = 160;
+      var endScale = 1.1;
+      var duration = 175;
       var elapsed = 0;
       var step = 16;
-
-      if (animateZoomIn._interval) jsmaf.clearInterval(animateZoomIn._interval);
-
-      animateZoomIn._interval = jsmaf.setInterval(function () {
+      zoomInInterval = jsmaf.setInterval(function () {
         elapsed += step;
         var t = Math.min(elapsed / duration, 1);
-        var eased = (1 - Math.cos(t * Math.PI)) / 2;
+        var eased = easeInOut(t);
         var scale = startScale + (endScale - startScale) * eased;
-
         btn.scaleX = scale;
         btn.scaleY = scale;
         btn.x = btnOrigX - btnW * (scale - 1) / 2;
         btn.y = btnOrigY - btnH * (scale - 1) / 2;
-
-        if (textA) {
-          textA.scaleX = scale;
-          textA.scaleY = scale;
-          textA.x = textOrigXA - btnW * (scale - 1) / 2;
-          textA.y = textOrigYA - btnH * (scale - 1) / 2;
-        }
-
-        if (textB) {
-          textB.scaleX = scale;
-          textB.scaleY = scale;
-          textB.x = textOrigXB - btnW * (scale - 1) / 2;
-          textB.y = textOrigYB - btnH * (scale - 1) / 2;
-        }
-
+        text.scaleX = scale;
+        text.scaleY = scale;
+        text.x = textOrigX - btnW * (scale - 1) / 2;
+        text.y = textOrigY - btnH * (scale - 1) / 2;
         if (t >= 1) {
-          jsmaf.clearInterval(animateZoomIn._interval);
-          animateZoomIn._interval = null;
+          jsmaf.clearInterval(zoomInInterval);
+          zoomInInterval = null;
         }
       }, step);
     }
 
-    function animateZoomOut(btn, textA, textB, btnOrigX, btnOrigY, textOrigXA, textOrigYA, textOrigXB, textOrigYB) {
+    function animateZoomOut(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY) {
+      if (zoomOutInterval) jsmaf.clearInterval(zoomOutInterval);
       var btnW = buttonWidth;
       var btnH = buttonHeight;
-      var startScale = btn.scaleX || 1.08;
+      var startScale = btn.scaleX || 1.1;
       var endScale = 1.0;
-      var duration = 160;
+      var duration = 175;
       var elapsed = 0;
       var step = 16;
-
-      if (animateZoomOut._interval) jsmaf.clearInterval(animateZoomOut._interval);
-
-      animateZoomOut._interval = jsmaf.setInterval(function () {
+      zoomOutInterval = jsmaf.setInterval(function () {
         elapsed += step;
         var t = Math.min(elapsed / duration, 1);
-        var eased = (1 - Math.cos(t * Math.PI)) / 2;
+        var eased = easeInOut(t);
         var scale = startScale + (endScale - startScale) * eased;
-
         btn.scaleX = scale;
         btn.scaleY = scale;
         btn.x = btnOrigX - btnW * (scale - 1) / 2;
         btn.y = btnOrigY - btnH * (scale - 1) / 2;
-
-        if (textA) {
-          textA.scaleX = scale;
-          textA.scaleY = scale;
-          textA.x = textOrigXA - btnW * (scale - 1) / 2;
-          textA.y = textOrigYA - btnH * (scale - 1) / 2;
-        }
-
-        if (textB) {
-          textB.scaleX = scale;
-          textB.scaleY = scale;
-          textB.x = textOrigXB - btnW * (scale - 1) / 2;
-          textB.y = textOrigYB - btnH * (scale - 1) / 2;
-        }
-
+        text.scaleX = scale;
+        text.scaleY = scale;
+        text.x = textOrigX - btnW * (scale - 1) / 2;
+        text.y = textOrigY - btnH * (scale - 1) / 2;
         if (t >= 1) {
-          jsmaf.clearInterval(animateZoomOut._interval);
-          animateZoomOut._interval = null;
+          jsmaf.clearInterval(zoomOutInterval);
+          zoomOutInterval = null;
         }
       }, step);
     }
 
     function updateHighlight() {
-      var prev = buttons[prevButton];
-      if (prevButton >= 0 && prevButton !== currentButton && prev) {
-        prev.url = normalButtonImg;
-        prev.alpha = 0.7;
-        prev.borderColor = 'transparent';
-        prev.borderWidth = 0;
-        animateZoomOut(
-          prev,
-          labels[prevButton],
-          values[prevButton],
-          buttonOrigPos[prevButton].x,
-          buttonOrigPos[prevButton].y,
-          labelOrigPos[prevButton].x,
-          labelOrigPos[prevButton].y,
-          valueOrigPos[prevButton].x,
-          valueOrigPos[prevButton].y
-        );
+      var prevBtn = buttons[prevButton];
+      if (prevButton >= 0 && prevButton !== currentButton && prevBtn) {
+        prevBtn.url = normalButtonImg;
+        prevBtn.alpha = 0.7;
+        prevBtn.borderColor = 'transparent';
+        prevBtn.borderWidth = 0;
+        if (prevBtn.__glowVisible) prevBtn.__glowVisible = false;
+        animateZoomOut(prevBtn, buttonTexts[prevButton], buttonOrigPos[prevButton].x, buttonOrigPos[prevButton].y, textOrigPos[prevButton].x, textOrigPos[prevButton].y);
       }
 
       for (var i = 0; i < buttons.length; i++) {
         var btn = buttons[i];
-        if (!btn) continue;
+        var txt = buttonTexts[i];
+        var origBtn = buttonOrigPos[i];
+        var origTxt = textOrigPos[i];
+        if (!btn || !txt) continue;
 
         if (i === currentButton) {
           btn.url = selectedButtonImg;
           btn.alpha = 1.0;
           btn.borderColor = 'rgb(100,180,255)';
           btn.borderWidth = 3;
-          animateZoomIn(
-            btn,
-            labels[i],
-            values[i],
-            buttonOrigPos[i].x,
-            buttonOrigPos[i].y,
-            labelOrigPos[i].x,
-            labelOrigPos[i].y,
-            valueOrigPos[i].x,
-            valueOrigPos[i].y
-          );
+          btn.__glowVisible = true;
+          animateZoomIn(btn, txt, origBtn.x, origBtn.y, origTxt.x, origTxt.y);
         } else if (i !== prevButton) {
           btn.url = normalButtonImg;
           btn.alpha = 0.7;
           btn.borderColor = 'transparent';
           btn.borderWidth = 0;
-          btn.scaleX = 1.0;
-          btn.scaleY = 1.0;
-          btn.x = buttonOrigPos[i].x;
-          btn.y = buttonOrigPos[i].y;
-          if (labels[i]) {
-            labels[i].scaleX = 1.0;
-            labels[i].scaleY = 1.0;
-            labels[i].x = labelOrigPos[i].x;
-            labels[i].y = labelOrigPos[i].y;
-          }
-          if (values[i]) {
-            values[i].scaleX = 1.0;
-            values[i].scaleY = 1.0;
-            values[i].x = valueOrigPos[i].x;
-            values[i].y = valueOrigPos[i].y;
-          }
+          btn.__glowVisible = false;
+          btn.scaleX = 1.0; btn.scaleY = 1.0;
+          btn.x = origBtn.x; btn.y = origBtn.y;
+          txt.scaleX = 1.0; txt.scaleY = 1.0;
+          txt.x = origTxt.x; txt.y = origTxt.y;
         }
       }
-
       prevButton = currentButton;
     }
 
-    function cycleTheme() {
-      var themeList = ['default', 'dark', 'neon'];
-      var idx = themeList.indexOf(config.theme);
-      if (idx < 0) idx = 0;
-      config.theme = themeList[(idx + 1) % themeList.length];
+    function updateValueText(index) {
+      var opt = configOptions[index];
+      var val = valueTexts[index];
+      if (!opt || !val) return;
+
+      if (opt.type === 'toggle') {
+        val.url = currentConfig[opt.key] ? baseImg + 'check_small_on.png' : baseImg + 'check_small_off.png';
+      } else {
+        if (opt.key === 'jb_behavior') {
+          if (useImageText) {
+            val.url = textImageBase + jbBehaviorImgKeys[currentConfig.jb_behavior] + '.png';
+          } else {
+            val.text = jbBehaviorLabels[currentConfig.jb_behavior];
+          }
+        } else if (opt.key === 'theme') {
+          var idx = availableThemes.indexOf(currentConfig.theme);
+          if (idx < 0) idx = 0;
+          if (useImageText) {
+            val.url = textImageBase + themeImgKeys[idx] + '.png';
+          } else {
+            val.text = themeLabels[idx];
+          }
+        }
+      }
+    }
+
+    function saveConfig() {
+      if (!configLoaded) return;
+      var configData = {
+        config: {
+          autolapse: currentConfig.autolapse,
+          autopoop: currentConfig.autopoop,
+          autoclose: currentConfig.autoclose,
+          autoclose_delay: currentConfig.autoclose_delay,
+          music: currentConfig.music,
+          jb_behavior: currentConfig.jb_behavior,
+          theme: currentConfig.theme
+        },
+        payloads: userPayloads
+      };
+      fs.write('config.json', JSON.stringify(configData, null, 2), function (err) {
+        if (err) log('ERROR saving config: ' + err.message);
+        else log('Config saved');
+      });
+    }
+
+    function loadConfig() {
+      fs.read('config.json', function (err, data) {
+        if (err) { log('No saved config, using defaults'); configLoaded = true; return; }
+        try {
+          var cfg = JSON.parse(data || '{}');
+          if (cfg.config) {
+            currentConfig.autolapse = cfg.config.autolapse || false;
+            currentConfig.autopoop = cfg.config.autopoop || false;
+            currentConfig.autoclose = cfg.config.autoclose || false;
+            currentConfig.autoclose_delay = cfg.config.autoclose_delay || 0;
+            currentConfig.music = cfg.config.music !== false;
+            currentConfig.jb_behavior = cfg.config.jb_behavior || 0;
+            if (cfg.config.theme && availableThemes.includes(cfg.config.theme)) {
+              currentConfig.theme = cfg.config.theme;
+            }
+            if (cfg.payloads) userPayloads = cfg.payloads;
+          }
+          for (var i = 0; i < configOptions.length; i++) updateValueText(i);
+          if (currentConfig.music) startBgmIfEnabled(); else stopBgm();
+          configLoaded = true;
+          log('Config loaded');
+        } catch (e) {
+          log('Error parsing config: ' + e.message);
+          configLoaded = true;
+        }
+      });
     }
 
     function handleButtonPress() {
-      var opt = options[currentButton];
-      if (!opt) return;
+      if (currentButton >= configOptions.length) return;
+      var opt = configOptions[currentButton];
+      var key = opt.key;
 
-      if (opt.type === 'toggle') {
-        config[opt.key] = !config[opt.key];
-      } else if (opt.type === 'cycle') {
-        if (opt.key === 'jb_behavior') {
-          config.jb_behavior = (config.jb_behavior + 1) % opt.values.length;
-        } else if (opt.key === 'theme') {
-          cycleTheme();
+      if (opt.type === 'cycle') {
+        if (key === 'jb_behavior') {
+          currentConfig.jb_behavior = (currentConfig.jb_behavior + 1) % jbBehaviorLabels.length;
+        } else if (key === 'theme') {
+          var idx = availableThemes.indexOf(currentConfig.theme);
+          idx = (idx + 1) % availableThemes.length;
+          currentConfig.theme = availableThemes[idx];
+        }
+      } else {
+        currentConfig[key] = !currentConfig[key];
+        if (key === 'music') {
+          if (currentConfig.music) startBgmIfEnabled(); else stopBgm();
+        }
+        // Mutual exclusivity
+        if (key === 'autolapse' && currentConfig.autolapse) {
+          currentConfig.autopoop = false;
+          updateValueText(configOptions.findIndex(o => o.key === 'autopoop'));
+        } else if (key === 'autopoop' && currentConfig.autopoop) {
+          currentConfig.autolapse = false;
+          updateValueText(configOptions.findIndex(o => o.key === 'autolapse'));
         }
       }
-
-      saveConfig(config);
-      updateAllValues();
-      updateHighlight();
+      updateValueText(currentButton);
+      saveConfig();
     }
 
-    function goBack() {
-      saveConfig(config);
-      navigateTo('main.html');
-    }
+    // Keyboard / gamepad simulation
+    var confirmKey = jsmaf.circleIsAdvanceButton ? 13 : 14; // Enter or O?
+    var backKey = jsmaf.circleIsAdvanceButton ? 14 : 13;
 
     jsmaf.onKeyDown = function (keyCode) {
+      // D-pad right (6 or 5) = next
       if (keyCode === 6 || keyCode === 5) {
         currentButton = (currentButton + 1) % buttons.length;
         updateHighlight();
-      } else if (keyCode === 4 || keyCode === 7) {
+      }
+      // D-pad left (4 or 7) = previous
+      else if (keyCode === 4 || keyCode === 7) {
         currentButton = (currentButton - 1 + buttons.length) % buttons.length;
         updateHighlight();
-      } else if (keyCode === 14 || keyCode === 13) {
-        if (currentButton === buttons.length - 1) goBack();
-        else handleButtonPress();
+      }
+      // Confirm
+      else if (keyCode === confirmKey) {
+        handleButtonPress();
+      }
+      // Back -> return to main menu (navigate to index.html)
+      else if (keyCode === backKey) {
+        saveConfig();
+        navigateTo('index.html'); // or wherever main menu is
       }
     };
 
-    updateAllValues();
+    // Touch/keyboard fallback: map keyboard arrows
+    window.addEventListener('keydown', function(e) {
+      var key = e.key;
+      if (key === 'ArrowDown') jsmaf.onKeyDown(6);
+      else if (key === 'ArrowUp') jsmaf.onKeyDown(4);
+      else if (key === 'Enter') jsmaf.onKeyDown(confirmKey);
+      else if (key === 'Escape') jsmaf.onKeyDown(backKey);
+      else if (key === 'ArrowRight') jsmaf.onKeyDown(5);
+      else if (key === 'ArrowLeft') jsmaf.onKeyDown(7);
+      e.preventDefault();
+    });
+
+    // Initialize
     updateScale();
     updateHighlight();
-
-    window.addEventListener('load', function () {
-      updateScale();
-    });
+    loadConfig();
+    log('Config menu ready');
   })();
   </script>
 </body>
