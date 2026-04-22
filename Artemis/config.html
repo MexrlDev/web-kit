@@ -6,7 +6,6 @@
   <meta name="theme-color" content="#000000" />
   <title>Artemis Config</title>
   <style>
-    /* same CSS as above */
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; font-family: Arial, Helvetica, sans-serif; touch-action: none; -webkit-user-select: none; user-select: none; }
     #viewport { position: fixed; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; touch-action: none; }
     #screen { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; background: #000; image-rendering: pixelated; transform-origin: center center; will-change: transform; }
@@ -23,7 +22,8 @@
   <script>
   (function(){
     'use strict';
-    // ---------- Framework ----------
+
+    // ========== FRAMEWORK ==========
     window.log=function(){ console.log.apply(console,arguments); };
     function scriptBaseURL(){ var c=document.currentScript&&document.currentScript.src; if(!c)c=window.location.href; return new URL('.',c).href; }
     function resolveAsset(p){ return new URL(p,scriptBaseURL()).href; }
@@ -40,57 +40,56 @@
     window.jsmaf={ root:{children:[]}, setInterval:function(f,t){return window.setInterval(f,t);}, clearInterval:function(i){window.clearInterval(i);}, onKeyDown:null, setTimeout:window.setTimeout, circleIsAdvanceButton:false, XMLHttpRequest:window.XMLHttpRequest };
     jsmaf.Text=function(){ var o={text:'',x:0,y:0,style:'white',scaleX:1,scaleY:1}; var n=createTextNode(o); o._node=n; Object.defineProperty(o,'text',{get:function(){return n.textContent;},set:function(v){n.textContent=v;}}); Object.defineProperty(o,'x',{get:function(){return parseFloat(n.style.left)||0;},set:function(v){n.style.left=v+'px';}}); Object.defineProperty(o,'y',{get:function(){return parseFloat(n.style.top)||0;},set:function(v){n.style.top=v+'px';}}); Object.defineProperty(o,'scaleX',{get:function(){return o._scaleX||1;},set:function(v){o._scaleX=v; o._node.style.transform='scale('+v+','+(o._scaleY||v)+')';}}); Object.defineProperty(o,'scaleY',{get:function(){return o._scaleY||1;},set:function(v){o._scaleY=v; o._node.style.transform='scale('+(o._scaleX||v)+','+v+')';}}); Object.defineProperty(o,'style',{set:function(v){ if(v==='white'){ o._node.style.color='white'; o._node.style.fontSize='24px'; }else if(v==='title'){ o._node.style.color='white'; o._node.style.fontSize='32px'; } }}); screen.appendChild(n); return o; };
     function Style(o){ window.__styles__=window.__styles__||{}; window.__styles__[o.name]=o; }
-    /* === END FRAMEWORK === */
 
-    // ---------- Shared Config & Music ----------
+    // ========== SHARED CONFIG & MUSIC ==========
     var CONFIG_KEY = 'app_config';
     var defaultConfig = { music: true, theme: 'default', autolapse: false, autopoop: false, autoclose: false, jb_behavior: 0 };
     var currentConfig = JSON.parse(JSON.stringify(defaultConfig));
     var musicEnabled = true;
 
     function loadConfig() {
-      try {
-        var saved = localStorage.getItem(CONFIG_KEY);
-        if (saved) { var cfg = JSON.parse(saved); Object.assign(currentConfig, cfg); }
-      } catch(e) {}
+      try { var saved = localStorage.getItem(CONFIG_KEY); if(saved) Object.assign(currentConfig, JSON.parse(saved)); } catch(e){}
       musicEnabled = currentConfig.music;
-      if (!musicEnabled) stopBgm();
+      if(!musicEnabled) stopBgm();
     }
-    function saveConfig() { try { localStorage.setItem(CONFIG_KEY, JSON.stringify(currentConfig)); } catch(e) {} }
+    function saveConfig() { try { localStorage.setItem(CONFIG_KEY, JSON.stringify(currentConfig)); } catch(e){} }
 
     var bgm = new Audio(resolveAsset('./data/bg.mp3'));
     bgm.loop = true; bgm.preload = 'auto'; bgm.volume = 0.5;
     var bgmStarted = false;
-    function startBgmIfEnabled() { if (!musicEnabled || bgmStarted) return; bgmStarted = true; var p = bgm.play(); p && p.catch && p.catch(function(){ bgmStarted = false; }); }
-    function stopBgm() { try { bgm.pause(); bgm.currentTime = 0; bgmStarted = false; } catch(e) {} }
-    ['pointerdown','touchstart','keydown'].forEach(function(e){ window.addEventListener(e, function(){ if(musicEnabled) startBgmIfEnabled(); }, {passive:true}); });
+    function startBgmIfEnabled() { if(!musicEnabled || bgmStarted) return; bgmStarted = true; var p = bgm.play(); p && p.catch && p.catch(function(){ bgmStarted = false; }); }
+    function stopBgm() { try { bgm.pause(); bgm.currentTime = 0; bgmStarted = false; } catch(e){} }
+    ['pointerdown','touchstart','keydown'].forEach(e=>window.addEventListener(e,()=>{ if(musicEnabled) startBgmIfEnabled(); },{passive:true}));
     window.addEventListener('beforeunload', stopBgm);
-    document.addEventListener('visibilitychange', function(){ if(!document.hidden && musicEnabled) startBgmIfEnabled(); });
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && musicEnabled) startBgmIfEnabled(); });
 
-    // Theme unload redirect
+    // Theme redirect on unload
     var THEMES = { 'default': { path: '../default/index.html' }, 'Artemis': { path: 'index.html' } };
     window.addEventListener('beforeunload', function(e){
       var theme = currentConfig.theme;
-      if (theme && theme !== 'default') {
+      if(theme && theme !== 'default'){
         var info = THEMES[theme];
-        if (info && !window.location.pathname.endsWith(info.path)) {
+        if(info && !window.location.pathname.endsWith(info.path)){
           window.location.replace(info.path);
           e.returnValue = 'Changing theme...';
         }
       }
     });
 
-    // ---------- Artemis Config UI ----------
+    // ========== ARTEMIS CONFIG UI ==========
     var SCREEN_W = 1920, SCREEN_H = 1080;
     var ASSET_PATH = resolveAsset('./data/');
-    var lang = { config: 'Options', autoLapse: 'Auto Lapse', autoPoop: 'Auto Poop', autoClose: 'Auto Close', music: 'Music', jbBehavior: 'JB Behavior', theme: 'Theme', jbBehaviorAuto: 'Auto', jbBehaviorNetctrl: 'Netctrl', jbBehaviorLapse: 'Lapse' };
+    var lang = {
+      config: 'Options', autoLapse: 'Auto Lapse', autoPoop: 'Auto Poop', autoClose: 'Auto Close',
+      music: 'Music', jbBehavior: 'JB Behavior', theme: 'Theme',
+      jbBehaviorAuto: 'Auto', jbBehaviorNetctrl: 'Netctrl', jbBehaviorLapse: 'Lapse'
+    };
     var jbBehaviorLabels = [lang.jbBehaviorAuto, lang.jbBehaviorNetctrl, lang.jbBehaviorLapse];
     var availableThemes = ['default', 'Artemis'];
     var themeLabels = availableThemes.map(t => t.charAt(0).toUpperCase() + t.slice(1));
 
     loadConfig();
 
-    // Clear root
     jsmaf.root.children.length = 0;
     new Style({ name: 'title', color: 'black', size: 32 });
     new Style({ name: 'listText', color: 'black', size: 36, bold: true });
@@ -121,7 +120,6 @@
     var fadingIn = true, pressedKeys = {};
     var TEXT_HEIGHT = 38;
 
-    // Build UI (similar to config_ui.js but using our framework)
     // Background
     var bg = new Image({ url: ASSET_PATH + 'bgimg.png', x: 0, y: 0, width: SCREEN_W, height: SCREEN_H });
     jsmaf.root.children.push(bg);
@@ -138,18 +136,30 @@
     selBarImg = new Image({ url: ASSET_PATH + 'sel_bar1.png', x: SEL_BAR_X, y: LIST_START_Y, width: SEL_BAR_WIDTH, height: SEL_BAR_HEIGHT, alpha: 0 });
     jsmaf.root.children.push(selBarImg); fadeElements.push(selBarImg);
 
-    for (var i = 0; i < configOptions.length; i++) {
+    function updateValueText(idx){
+      var opt = configOptions[idx], state = stateElements[idx];
+      if(!opt || !state) return;
+      if(opt.type === 'toggle'){
+        if(state.img) state.img.url = currentConfig[opt.key] ? ASSET_PATH + 'opt_on.png' : ASSET_PATH + 'opt_off.png';
+      } else {
+        var val = (opt.key === 'jb_behavior') ? jbBehaviorLabels[currentConfig.jb_behavior] :
+                  (opt.key === 'theme') ? themeLabels[availableThemes.indexOf(currentConfig.theme) || 0] : '';
+        if(state.text) state.text.text = '< ' + val + ' >';
+      }
+    }
+
+    for(var i=0; i<configOptions.length; i++){
       var opt = configOptions[i];
       var txt = new jsmaf.Text(); txt.text = opt.label; txt.style = 'listText';
-      txt.x = TEXT_X; txt.y = LIST_START_Y + i * ITEM_HEIGHT + (ITEM_HEIGHT - TEXT_HEIGHT)/2; txt.alpha = 0;
+      txt.x = TEXT_X; txt.y = LIST_START_Y + i*ITEM_HEIGHT + (ITEM_HEIGHT - TEXT_HEIGHT)/2; txt.alpha = 0;
       optionTexts.push(txt); jsmaf.root.children.push(txt); fadeElements.push(txt);
 
       var stateObj = { img: null, text: null };
-      if (opt.type === 'toggle') {
+      if(opt.type === 'toggle'){
         var img = new Image({
           url: currentConfig[opt.key] ? ASSET_PATH + 'opt_on.png' : ASSET_PATH + 'opt_off.png',
           x: SWITCH_TEXT_X + SWITCH_TEXT_CENTER_OFFSET - STATE_IMG_W/2,
-          y: LIST_START_Y + i * ITEM_HEIGHT + (ITEM_HEIGHT - STATE_IMG_H)/2,
+          y: LIST_START_Y + i*ITEM_HEIGHT + (ITEM_HEIGHT - STATE_IMG_H)/2,
           width: STATE_IMG_W, height: STATE_IMG_H, alpha: 0
         });
         stateObj.img = img; jsmaf.root.children.push(img); fadeElements.push(img);
@@ -159,7 +169,7 @@
                   (opt.key === 'theme') ? themeLabels[availableThemes.indexOf(currentConfig.theme) || 0] : '';
         cycleText.text = '< ' + val + ' >';
         cycleText.style = 'listText';
-        cycleText.x = SWITCH_TEXT_X; cycleText.y = LIST_START_Y + i * ITEM_HEIGHT + (ITEM_HEIGHT - TEXT_HEIGHT)/2; cycleText.alpha = 0;
+        cycleText.x = SWITCH_TEXT_X; cycleText.y = LIST_START_Y + i*ITEM_HEIGHT + (ITEM_HEIGHT - TEXT_HEIGHT)/2; cycleText.alpha = 0;
         stateObj.text = cycleText; jsmaf.root.children.push(cycleText); fadeElements.push(cycleText);
       }
       stateElements.push(stateObj);
@@ -184,25 +194,90 @@
     footerBackText.x = backStartX + FOOTER_ICON_SIZE + FOOTER_GAP_ICON_TEXT; footerBackText.y = FOOTER_Y - 18; footerBackText.alpha = 0;
     jsmaf.root.children.push(footerBackText); fadeElements.push(footerBackText);
 
-    // Helper functions (updateListPositions, moveUp/Down, handlePress, updateValueText)
-    // ... (implement similar to config_ui.js but using our framework)
-    // For brevity, I'll skip the full implementation here; it's analogous to the earlier config.html.
+    function updateListPositions(){
+      for(var i=0; i<optionTexts.length; i++){
+        var baseY = LIST_START_Y + i*ITEM_HEIGHT + (ITEM_HEIGHT - TEXT_HEIGHT)/2;
+        var y = baseY - scrollOffset;
+        optionTexts[i].y = y;
+        optionTexts[i].visible = (y >= VISIBLE_TOP - TEXT_HEIGHT && y <= VISIBLE_BOTTOM);
+        var state = stateElements[i];
+        if(state.img){
+          state.img.y = LIST_START_Y + i*ITEM_HEIGHT + (ITEM_HEIGHT - STATE_IMG_H)/2 - scrollOffset;
+          state.img.visible = (state.img.y >= VISIBLE_TOP - STATE_IMG_H && state.img.y <= VISIBLE_BOTTOM);
+        }
+        if(state.text){
+          state.text.y = y;
+          state.text.visible = (y >= VISIBLE_TOP - TEXT_HEIGHT && y <= VISIBLE_BOTTOM);
+        }
+      }
+      if(configOptions.length){
+        var selY = LIST_START_Y + currentIndex*ITEM_HEIGHT + (ITEM_HEIGHT - SEL_BAR_HEIGHT)/2 - scrollOffset;
+        selBarImg.y = selY;
+        selBarImg.visible = (selY >= VISIBLE_TOP - SEL_BAR_HEIGHT && selY <= VISIBLE_BOTTOM);
+      }
+    }
 
-    // Start fade-in
-    function startFadeIn() {
+    function ensureVisible(){
+      var itemTop = LIST_START_Y + currentIndex*ITEM_HEIGHT - scrollOffset;
+      if(itemTop < VISIBLE_TOP) scrollOffset = Math.max(0, LIST_START_Y + currentIndex*ITEM_HEIGHT - VISIBLE_TOP);
+      else if(itemTop + ITEM_HEIGHT > VISIBLE_BOTTOM) scrollOffset = LIST_START_Y + currentIndex*ITEM_HEIGHT + ITEM_HEIGHT - VISIBLE_BOTTOM;
+      updateListPositions();
+    }
+
+    function moveUp(){ if(currentIndex>0) currentIndex--; else { currentIndex = configOptions.length-1; scrollOffset = Math.max(0, configOptions.length*ITEM_HEIGHT - (VISIBLE_BOTTOM-VISIBLE_TOP)); } ensureVisible(); }
+    function moveDown(){ if(currentIndex<configOptions.length-1) currentIndex++; else { currentIndex=0; scrollOffset=0; } ensureVisible(); }
+
+    function handlePress(){
+      var opt = configOptions[currentIndex];
+      if(opt.type === 'cycle'){
+        if(opt.key === 'jb_behavior') currentConfig.jb_behavior = (currentConfig.jb_behavior+1) % jbBehaviorLabels.length;
+        else if(opt.key === 'theme'){
+          var idx = availableThemes.indexOf(currentConfig.theme);
+          idx = (idx+1) % availableThemes.length;
+          currentConfig.theme = availableThemes[idx];
+        }
+      } else {
+        currentConfig[opt.key] = !currentConfig[opt.key];
+        if(opt.key === 'music'){ musicEnabled = currentConfig.music; if(musicEnabled) startBgmIfEnabled(); else stopBgm(); }
+        if(opt.key === 'autolapse' && currentConfig.autolapse){ currentConfig.autopoop = false; updateValueText(configOptions.findIndex(o=>o.key==='autopoop')); }
+        if(opt.key === 'autopoop' && currentConfig.autopoop){ currentConfig.autolapse = false; updateValueText(configOptions.findIndex(o=>o.key==='autolapse')); }
+      }
+      updateValueText(currentIndex);
+      saveConfig();
+    }
+
+    function startFadeIn(){
       var startTime = Date.now(), fadeDuration = 5000;
       var interval = jsmaf.setInterval(function(){
         var elapsed = Date.now() - startTime, t = Math.min(elapsed / fadeDuration, 1);
         var lineT = Math.min(Math.max(0, elapsed - lineExpandDelayMs) / lineExpandDurationMs, 1);
-        for (var i=0; i<fadeElements.length; i++) fadeElements[i].alpha = t;
+        for(var i=0; i<fadeElements.length; i++) fadeElements[i].alpha = t;
         lineImg.width = LINE_TARGET_W * lineT;
-        if (t >= 1) { jsmaf.clearInterval(interval); fadingIn = false; }
+        if(t >= 1){ jsmaf.clearInterval(interval); fadingIn = false; }
       }, 16);
     }
 
+    jsmaf.onKeyDown = function(code){
+      if(fadingIn) return;
+      if(pressedKeys[code]) return;
+      pressedKeys[code] = true;
+      if(code === 4 || code === 7 || code === 55) moveUp();
+      else if(code === 6 || code === 57) moveDown();
+      else if(code === 14) handlePress();
+      else if(code === 27 || code === 13) navigateTo('index.html');
+    };
+    jsmaf.onKeyUp = function(code){ delete pressedKeys[code]; };
+    window.addEventListener('keydown', function(e){
+      if(e.key === 'ArrowUp') jsmaf.onKeyDown(4);
+      else if(e.key === 'ArrowDown') jsmaf.onKeyDown(6);
+      else if(e.key === 'Enter') jsmaf.onKeyDown(14);
+      else if(e.key === 'Escape') jsmaf.onKeyDown(27);
+      e.preventDefault();
+    });
+
     updateScale();
     startFadeIn();
-    if (musicEnabled) startBgmIfEnabled();
+    if(musicEnabled) startBgmIfEnabled();
     log('Artemis config ready');
   })();
   </script>
