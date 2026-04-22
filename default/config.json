@@ -1,0 +1,12 @@
+{
+  "themes": [
+    {
+      "name": "default",
+      "path": "main.html"
+    },
+    {
+      "name": "Artemis",
+      "path": "../Artemis/index.html"
+    }
+  ]
+}
