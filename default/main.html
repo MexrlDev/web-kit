@@ -4,701 +4,212 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
-  <title>main</title>
+  <title>Main Menu</title>
   <style>
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: #000;
-      font-family: Arial, Helvetica, sans-serif;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-
-    #viewport {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
-      touch-action: none;
-    }
-
-    #screen {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 1920px;
-      height: 1080px;
-      overflow: hidden;
-      background: #000;
-      image-rendering: pixelated;
-      transform-origin: center center;
-      will-change: transform;
-    }
-
-    .ui-img, .ui-text {
-      position: absolute;
-      transform-origin: left top;
-      will-change: transform, opacity, left, top;
-    }
-
-    .ui-img {
-      pointer-events: none;
-      image-rendering: pixelated;
-      -webkit-user-drag: none;
-      user-drag: none;
-    }
-
-    .ui-text {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      text-shadow: 0 1px 0 rgba(0,0,0,0.8);
-      pointer-events: none;
-      color: white;
-      white-space: nowrap;
-    }
-
-    .rgb-glow {
-      position: absolute;
-      z-index: 1;
-      border-radius: 8px;
-      filter: blur(8px) saturate(1.5);
-      pointer-events: none;
-      opacity: 0.95;
-      background: conic-gradient(
-        #ff0000,
-        #ff8800,
-        #ffee00,
-        #88ff00,
-        #00ffee,
-        #0000ff,
-        #8800ff,
-        #ff0088,
-        #ff0000
-      );
-      mask: radial-gradient(circle, transparent 60%, black 61%);
-      -webkit-mask: radial-gradient(circle, transparent 60%, black 61%);
-      animation: spin 3000ms linear infinite;
-      transform-origin: center;
-      display: none;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .interactive {
-      pointer-events: auto !important;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
+    /* ... same CSS as before ... */
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; font-family: Arial, Helvetica, sans-serif; touch-action: none; -webkit-user-select: none; user-select: none; }
+    #viewport { position: fixed; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; touch-action: none; }
+    #screen { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; background: #000; image-rendering: pixelated; transform-origin: center center; will-change: transform; }
+    .ui-img, .ui-text { position: absolute; transform-origin: left top; will-change: transform, opacity, left, top; }
+    .ui-img { pointer-events: none; image-rendering: pixelated; -webkit-user-drag: none; user-drag: none; }
+    .ui-text { display: flex; align-items: center; justify-content: center; font-weight: 600; text-shadow: 0 1px 0 rgba(0,0,0,0.8); pointer-events: none; color: white; white-space: nowrap; }
+    .rgb-glow { position: absolute; z-index: 1; border-radius: 8px; filter: blur(8px) saturate(1.5); pointer-events: none; opacity: 0.95; background: conic-gradient(#ff0000,#ff8800,#ffee00,#88ff00,#00ffee,#0000ff,#8800ff,#ff0088,#ff0000); mask: radial-gradient(circle, transparent 60%, black 61%); -webkit-mask: radial-gradient(circle, transparent 60%, black 61%); animation: spin 3000ms linear infinite; transform-origin: center; display: none; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .interactive { pointer-events: auto !important; cursor: pointer; touch-action: manipulation; }
   </style>
 </head>
 <body>
-  <div id="viewport">
-    <div id="screen" aria-hidden="false"></div>
-  </div>
-
+  <div id="viewport"><div id="screen"></div></div>
   <script>
-  (function () {
+  (function(){
     'use strict';
 
-    window.log = function () {
-      console.log.apply(console, arguments);
-    };
+    // ---------- Framework (identical to original) ----------
+    window.log=function(){ console.log.apply(console,arguments); };
+    function scriptBaseURL(){ var c=document.currentScript&&document.currentScript.src; if(!c)c=window.location.href; return new URL('.',c).href; }
+    function resolveAsset(p){ return new URL(p,scriptBaseURL()).href; }
+    function navigateTo(t){ window.location.href=new URL(t,scriptBaseURL()).href; }
+    function include(p){ var r=p; if(!/\.[a-z0-9]+$/i.test(r))r+='.html'; if(/\.js$/i.test(r))r=r.replace(/\.js$/i,'.html'); return fetch(new URL(r,scriptBaseURL()).href).then(function(res){ if(!res.ok)throw new Error('Failed to fetch '+r); return res.text(); }).then(function(txt){ (0,eval)(txt); return true; }); }
+    var screen=document.getElementById('screen');
+    function updateScale(){ var w=1920,h=1080,aw=window.innerWidth,ah=window.innerHeight,s=Math.min(aw/w,ah/h); screen.style.transform='translate(-50%, -50%) scale('+s+')'; }
+    window.addEventListener('resize',updateScale); window.addEventListener('orientationchange',updateScale); if(window.visualViewport)window.visualViewport.addEventListener('resize',updateScale);
+    function wirePress(n,h){ var l=0; function f(e){ var n=Date.now(); if(n-l<300)return; l=n; e&&e.preventDefault(); e&&e.stopPropagation(); if(musicEnabled)startBgmIfEnabled(); h(e); } n.addEventListener('pointerup',f,{passive:false}); n.addEventListener('touchend',f,{passive:false}); n.addEventListener('click',f,{passive:false}); }
+    function updateNodeFromObj(n,o){ n.style.display=o.visible===false?'none':'block'; n.style.opacity=typeof o.alpha==='number'?o.alpha:'1'; var x=o.x||0,y=o.y||0,w=o.width||(n.naturalWidth||0),h=o.height||(n.naturalHeight||0),sx=o.scaleX||1,sy=o.scaleY||sx; n.style.left=x+'px'; n.style.top=y+'px'; n.style.width=w+'px'; n.style.height=h+'px'; n.style.transform='scale('+sx+','+sy+')'; if(o.borderWidth&&o.borderColor){ n.style.border=o.borderWidth+'px solid '+o.borderColor; n.style.boxSizing='border-box'; }else n.style.border='none'; if(n._glow){ var g=n._glow,gx=x-8,gy=y-8,gw=w*sx+16,gh=h*sy+16,br=Math.max(6,Math.min(24,Math.round(Math.min(gw,gh)*0.06))); g.style.left=gx+'px'; g.style.top=gy+'px'; g.style.width=gw+'px'; g.style.height=gh+'px'; g.style.borderRadius=br+'px'; g.style.display=o.__glowVisible?'block':'none'; g.style.opacity=o._glowOpacity!==undefined?o._glowOpacity:0.95; } }
+    function createImageNode(o){ var g=document.createElement('div'); g.className='rgb-glow'; g.style.display='none'; screen.appendChild(g); var i=document.createElement('img'); i.className='ui-img'; i.style.position='absolute'; i.draggable=false; i.style.pointerEvents=o.interactive?'auto':'none'; if(o.interactive)i.classList.add('interactive'); if(o.url)i.src=o.url; updateNodeFromObj(i,o); i._glow=g; screen.appendChild(i); i.style.zIndex=2; g.style.zIndex=1; if(o.interactive&&typeof o.onPress==='function')wirePress(i,o.onPress); return i; }
+    function createTextNode(o){ var d=document.createElement('div'); d.className='ui-text'; d.style.pointerEvents='none'; d.style.whiteSpace='nowrap'; updateNodeFromObj(d,o); if(o.text)d.textContent=o.text; d.style.zIndex=3; screen.appendChild(d); return d; }
+    window.Image=function(o){ o=o||{}; var obj={ url:o.url||'', x:o.x||0, y:o.y||0, width:o.width||(o.url?100:0), height:o.height||(o.url?100:0), visible:o.visible!==false, scaleX:1, scaleY:1, alpha:1, borderColor:o.borderColor||'transparent', borderWidth:o.borderWidth||0, __glowVisible:false, interactive:!!o.interactive, onPress:o.onPress||null }; var n=createImageNode(obj); obj._node=n; Object.defineProperty(obj,'url',{get:function(){return n.src;},set:function(v){n.src=v;}}); Object.defineProperty(obj,'x',{get:function(){return parseFloat(n.style.left)||0;},set:function(v){n.style.left=v+'px';}}); Object.defineProperty(obj,'y',{get:function(){return parseFloat(n.style.top)||0;},set:function(v){n.style.top=v+'px';}}); Object.defineProperty(obj,'width',{get:function(){return parseFloat(n.style.width)||0;},set:function(v){n.style.width=v+'px';}}); Object.defineProperty(obj,'height',{get:function(){return parseFloat(n.style.height)||0;},set:function(v){n.style.height=v+'px';}}); Object.defineProperty(obj,'visible',{get:function(){return n.style.display!=='none';},set:function(v){n.style.display=v?'block':'none';}}); Object.defineProperty(obj,'scaleX',{get:function(){return obj._scaleX||1;},set:function(v){obj._scaleX=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'scaleY',{get:function(){return obj._scaleY||1;},set:function(v){obj._scaleY=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'alpha',{get:function(){return parseFloat(n.style.opacity)||1;},set:function(v){n.style.opacity=v;}}); Object.defineProperty(obj,'borderColor',{get:function(){return n.style.borderColor||'transparent';},set:function(v){n.style.borderColor=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'borderWidth',{get:function(){return parseFloat(n.style.borderWidth)||0;},set:function(v){n.style.borderWidth=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'__glowVisible',{get:function(){return obj.__glowVisibleFlag||false;},set:function(v){obj.__glowVisibleFlag=v; obj._node._glowVisible=v; updateNodeFromObj(n,obj);}}); screen.appendChild(n); return obj; };
+    window.jsmaf={ root:{children:[]}, setInterval:function(f,t){return window.setInterval(f,t);}, clearInterval:function(i){window.clearInterval(i);}, onKeyDown:null, setTimeout:window.setTimeout, circleIsAdvanceButton:false, XMLHttpRequest:window.XMLHttpRequest };
+    jsmaf.Text=function(){ var o={text:'',x:0,y:0,style:'white',scaleX:1,scaleY:1}; var n=createTextNode(o); o._node=n; Object.defineProperty(o,'text',{get:function(){return n.textContent;},set:function(v){n.textContent=v;}}); Object.defineProperty(o,'x',{get:function(){return parseFloat(n.style.left)||0;},set:function(v){n.style.left=v+'px';}}); Object.defineProperty(o,'y',{get:function(){return parseFloat(n.style.top)||0;},set:function(v){n.style.top=v+'px';}}); Object.defineProperty(o,'scaleX',{get:function(){return o._scaleX||1;},set:function(v){o._scaleX=v; o._node.style.transform='scale('+v+','+(o._scaleY||v)+')';}}); Object.defineProperty(o,'scaleY',{get:function(){return o._scaleY||1;},set:function(v){o._scaleY=v; o._node.style.transform='scale('+(o._scaleX||v)+','+v+')';}}); Object.defineProperty(o,'style',{set:function(v){ if(v==='white'){ o._node.style.color='white'; o._node.style.fontSize='24px'; }else if(v==='title'){ o._node.style.color='white'; o._node.style.fontSize='32px'; } }}); screen.appendChild(n); return o; };
+    function Style(o){ window.__styles__=window.__styles__||{}; window.__styles__[o.name]=o; }
 
-    function scriptBaseURL() {
-      var cur = document.currentScript && document.currentScript.src;
-      if (!cur) cur = window.location.href;
-      return new URL('.', cur).href;
-    }
+    // ---------- Shared Configuration & Music ----------
+    var CONFIG_KEY = 'app_config';
+    var defaultConfig = { music: true, theme: 'default', autolapse: false, autopoop: false, autoclose: false, jb_behavior: 0 };
+    var currentConfig = JSON.parse(JSON.stringify(defaultConfig));
+    var musicEnabled = true;
 
-    function resolveAsset(path) {
-      return new URL(path, scriptBaseURL()).href;
-    }
-
-    function navigateTo(target) {
-      var url = new URL(target, scriptBaseURL()).href;
-      window.location.href = url;
-    }
-
-    function include(path) {
-      var p = path;
-      if (!/\.[a-z0-9]+$/i.test(p)) p = p + '.html';
-      if (/\.js$/i.test(p)) p = p.replace(/\.js$/i, '.html');
-      var resolved = new URL(p, scriptBaseURL()).href;
-
-      return fetch(resolved).then(function (r) {
-        if (!r.ok) throw new Error('Failed to fetch ' + resolved + ' (' + r.status + ')');
-        return r.text();
-      }).then(function (text) {
-        (0, eval)(text);
-        return true;
-      });
-    }
-
-    var screen = document.getElementById('screen');
-
-    function updateScale() {
-      var designW = 1920;
-      var designH = 1080;
-      var availableW = window.innerWidth;
-      var availableH = window.innerHeight;
-      var scale = Math.min(availableW / designW, availableH / designH);
-      screen.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
-    }
-
-    window.addEventListener('resize', updateScale);
-    window.addEventListener('orientationchange', updateScale);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', updateScale);
-    }
-
-    function wirePress(node, handler) {
-      var lastPressAt = 0;
-      function fire(ev) {
-        var now = Date.now();
-        if (now - lastPressAt < 300) return;
-        lastPressAt = now;
-
-        if (ev && ev.preventDefault) ev.preventDefault();
-        if (ev && ev.stopPropagation) ev.stopPropagation();
-
-        startBgmIfEnabled();
-        handler(ev);
-      }
-
-      node.addEventListener('pointerup', fire, { passive: false });
-      node.addEventListener('touchend', fire, { passive: false });
-      node.addEventListener('click', fire, { passive: false });
-    }
-
-    function updateNodeFromObj(node, obj) {
-      node.style.display = (obj.visible === false) ? 'none' : 'block';
-      node.style.opacity = (typeof obj.alpha === 'number') ? obj.alpha : '1';
-
-      var x = (typeof obj.x === 'number') ? obj.x : 0;
-      var y = (typeof obj.y === 'number') ? obj.y : 0;
-      var w = (typeof obj.width === 'number') ? obj.width : (node.naturalWidth || 0);
-      var h = (typeof obj.height === 'number') ? obj.height : (node.naturalHeight || 0);
-      var sx = (typeof obj.scaleX === 'number') ? obj.scaleX : 1;
-      var sy = (typeof obj.scaleY === 'number') ? obj.scaleY : sx;
-
-      node.style.left = x + 'px';
-      node.style.top = y + 'px';
-      node.style.width = w + 'px';
-      node.style.height = h + 'px';
-      node.style.transform = 'scale(' + sx + ',' + sy + ')';
-
-      if (obj.borderWidth && obj.borderColor) {
-        node.style.border = obj.borderWidth + 'px solid ' + obj.borderColor;
-        node.style.boxSizing = 'border-box';
-      } else {
-        node.style.border = 'none';
-      }
-
-      if (node._glow) {
-        var glow = node._glow;
-        var gx = x - 8;
-        var gy = y - 8;
-        var gw = (w * sx) + 16;
-        var gh = (h * sy) + 16;
-        var br = Math.max(6, Math.min(24, Math.round(Math.min(gw, gh) * 0.06)));
-
-        glow.style.left = gx + 'px';
-        glow.style.top = gy + 'px';
-        glow.style.width = gw + 'px';
-        glow.style.height = gh + 'px';
-        glow.style.borderRadius = br + 'px';
-        glow.style.display = (obj.__glowVisible) ? 'block' : 'none';
-        glow.style.opacity = (obj._glowOpacity !== undefined) ? obj._glowOpacity : 0.95;
-      }
-    }
-
-    function createImageNode(obj) {
-      var wrapperGlow = document.createElement('div');
-      wrapperGlow.className = 'rgb-glow';
-      wrapperGlow.style.display = 'none';
-      screen.appendChild(wrapperGlow);
-
-      var img = document.createElement('img');
-      img.className = 'ui-img';
-      img.style.position = 'absolute';
-      img.draggable = false;
-      img.style.pointerEvents = obj.interactive ? 'auto' : 'none';
-      if (obj.interactive) img.classList.add('interactive');
-      if (obj.url) img.src = obj.url;
-
-      updateNodeFromObj(img, obj);
-      img._glow = wrapperGlow;
-      screen.appendChild(img);
-      img.style.zIndex = 2;
-      wrapperGlow.style.zIndex = 1;
-
-      if (obj.interactive && typeof obj.onPress === 'function') {
-        wirePress(img, obj.onPress);
-      }
-
-      return img;
-    }
-
-    function createTextNode(obj) {
-      var div = document.createElement('div');
-      div.className = 'ui-text';
-      div.style.pointerEvents = 'none';
-      div.style.whiteSpace = 'nowrap';
-      updateNodeFromObj(div, obj);
-      if (obj.text) div.textContent = obj.text;
-      div.style.zIndex = 3;
-      screen.appendChild(div);
-      return div;
-    }
-
-    window.Image = function (opts) {
-      opts = opts || {};
-      var obj = {
-        url: opts.url || '',
-        x: opts.x || 0,
-        y: opts.y || 0,
-        width: opts.width || (opts.url ? 100 : 0),
-        height: opts.height || (opts.url ? 100 : 0),
-        visible: (typeof opts.visible === 'boolean') ? opts.visible : true,
-        scaleX: 1,
-        scaleY: 1,
-        alpha: 1,
-        borderColor: opts.borderColor || 'transparent',
-        borderWidth: opts.borderWidth || 0,
-        __glowVisible: false,
-        interactive: !!opts.interactive,
-        onPress: opts.onPress || null
-      };
-
-      var node = createImageNode(obj);
-      obj._node = node;
-
-      Object.defineProperty(obj, 'url', { get: function () { return node.src; }, set: function (v) { node.src = v; } });
-      Object.defineProperty(obj, 'x', { get: function () { return parseFloat(node.style.left) || 0; }, set: function (v) { node.style.left = v + 'px'; } });
-      Object.defineProperty(obj, 'y', { get: function () { return parseFloat(node.style.top) || 0; }, set: function (v) { node.style.top = v + 'px'; } });
-      Object.defineProperty(obj, 'width', { get: function () { return parseFloat(node.style.width) || 0; }, set: function (v) { node.style.width = v + 'px'; } });
-      Object.defineProperty(obj, 'height', { get: function () { return parseFloat(node.style.height) || 0; }, set: function (v) { node.style.height = v + 'px'; } });
-      Object.defineProperty(obj, 'visible', { get: function () { return node.style.display !== 'none'; }, set: function (v) { node.style.display = v ? 'block' : 'none'; } });
-      Object.defineProperty(obj, 'scaleX', { get: function () { return obj._scaleX || 1; }, set: function (v) { obj._scaleX = v; updateNodeFromObj(node, obj); } });
-      Object.defineProperty(obj, 'scaleY', { get: function () { return obj._scaleY || 1; }, set: function (v) { obj._scaleY = v; updateNodeFromObj(node, obj); } });
-      Object.defineProperty(obj, 'alpha', { get: function () { return parseFloat(node.style.opacity) || 1; }, set: function (v) { node.style.opacity = v; } });
-      Object.defineProperty(obj, 'borderColor', { get: function () { return node.style.borderColor || 'transparent'; }, set: function (v) { node.style.borderColor = v; updateNodeFromObj(node, obj); } });
-      Object.defineProperty(obj, 'borderWidth', { get: function () { return parseFloat(node.style.borderWidth) || 0; }, set: function (v) { node.style.borderWidth = v; updateNodeFromObj(node, obj); } });
-      Object.defineProperty(obj, '__glowVisible', {
-        get: function () { return obj.__glowVisibleFlag || false; },
-        set: function (v) { obj.__glowVisibleFlag = v; obj._node._glowVisible = v; updateNodeFromObj(node, obj); }
-      });
-
-      screen.appendChild(node);
-      return obj;
-    };
-
-    window.jsmaf = {
-      root: { children: [] },
-      setInterval: function (fn, t) { return window.setInterval(fn, t); },
-      clearInterval: function (id) { window.clearInterval(id); },
-      onKeyDown: null,
-      setTimeout: window.setTimeout,
-      circleIsAdvanceButton: false,
-      XMLHttpRequest: window.XMLHttpRequest
-    };
-
-    jsmaf.Text = function () {
-      var obj = { text: '', x: 0, y: 0, style: 'white', scaleX: 1, scaleY: 1 };
-      var node = createTextNode(obj);
-      obj._node = node;
-
-      Object.defineProperty(obj, 'text', { get: function () { return node.textContent; }, set: function (v) { node.textContent = v; } });
-      Object.defineProperty(obj, 'x', { get: function () { return parseFloat(node.style.left) || 0; }, set: function (v) { node.style.left = v + 'px'; } });
-      Object.defineProperty(obj, 'y', { get: function () { return parseFloat(node.style.top) || 0; }, set: function (v) { node.style.top = v + 'px'; } });
-      Object.defineProperty(obj, 'scaleX', {
-        get: function () { return obj._scaleX || 1; },
-        set: function (v) {
-          obj._scaleX = v;
-          obj._node.style.transform = 'scale(' + v + ',' + (obj._scaleY || v) + ')';
+    // Load config from localStorage
+    function loadConfig() {
+      try {
+        var saved = localStorage.getItem(CONFIG_KEY);
+        if (saved) {
+          var cfg = JSON.parse(saved);
+          Object.assign(currentConfig, cfg);
         }
-      });
-      Object.defineProperty(obj, 'scaleY', {
-        get: function () { return obj._scaleY || 1; },
-        set: function (v) {
-          obj._scaleY = v;
-          obj._node.style.transform = 'scale(' + (obj._scaleX || v) + ',' + v + ')';
-        }
-      });
-      Object.defineProperty(obj, 'style', {
-        set: function (v) {
-          if (v === 'white') {
-            obj._node.style.color = 'white';
-            obj._node.style.fontSize = '24px';
-          } else if (v === 'title') {
-            obj._node.style.color = 'white';
-            obj._node.style.fontSize = '32px';
+      } catch(e) { log('Config load error: '+e); }
+      musicEnabled = currentConfig.music;
+      if (!musicEnabled) stopBgm();
+      log('Config loaded:', currentConfig);
+    }
+
+    function saveConfig() {
+      try {
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(currentConfig));
+        log('Config saved');
+      } catch(e) { log('Config save error: '+e); }
+    }
+
+    // Background music
+    var bgm = new Audio('https://raw.githubusercontent.com/MexrlDev/web-kit/refs/heads/main/default/music/bgm.mp3');
+    bgm.loop = true; bgm.preload = 'auto'; bgm.volume = 0.5; bgm.playsInline = true;
+    var bgmStarted = false;
+    function startBgmIfEnabled() {
+      if (!musicEnabled || bgmStarted) return;
+      bgmStarted = true;
+      var p = bgm.play();
+      p && p.catch && p.catch(function(){ bgmStarted = false; });
+    }
+    function stopBgm() {
+      try { bgm.pause(); bgm.currentTime = 0; bgmStarted = false; } catch(e) {}
+    }
+    ['pointerdown','touchstart','keydown'].forEach(function(e){ window.addEventListener(e, function(){ if(musicEnabled) startBgmIfEnabled(); }, {passive:true}); });
+    window.addEventListener('beforeunload', stopBgm);
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden && musicEnabled) startBgmIfEnabled(); });
+
+    // ---------- Theme Handling (on unload) ----------
+    // List of available themes (normally from config.json, here hardcoded for demo)
+    var THEMES = {
+      'default': { path: 'index.html' },  // current
+      'dark':    { path: 'themes/dark/index.html' },
+      'light':   { path: 'themes/light/index.html' }
+    };
+
+    // When user leaves the page, if theme is not default and we're not already on that theme's page,
+    // redirect to the theme's entry point.
+    window.addEventListener('beforeunload', function(e) {
+      var theme = currentConfig.theme;
+      if (theme && theme !== 'default') {
+        var themeInfo = THEMES[theme];
+        if (themeInfo) {
+          var targetPath = themeInfo.path;
+          // Avoid redirect loop if already on the theme page
+          if (!window.location.pathname.endsWith(targetPath)) {
+            // Use location.replace to avoid adding to history
+            window.location.replace(targetPath);
+            // For beforeunload, we can't cancel reliably, but setting location will work.
+            e.returnValue = 'Changing theme...'; // Some browsers show this
           }
         }
-      });
+      }
+    });
 
-      screen.appendChild(node);
-      return obj;
-    };
-
-    function Style(opts) {
-      window.__styles__ = window.__styles__ || {};
-      window.__styles__[opts.name] = opts;
-    }
-
+    // ---------- UI Initialization ----------
     var baseImg = resolveAsset('./img/');
     var useImageText = false;
     var textImageBase = baseImg + 'text_';
 
-    var bgm = new Audio('https://raw.githubusercontent.com/MexrlDev/web-kit/refs/heads/main/default/music/bgm.mp3');
-    bgm.loop = true;
-    bgm.preload = 'auto';
-    bgm.volume = 0.5;
-    bgm.playsInline = true;
-
-    var bgmStarted = false;
-    function startBgmIfEnabled() {
-      if (bgmStarted) return;
-      bgmStarted = true;
-      var attempt = bgm.play();
-      if (attempt && typeof attempt.catch === 'function') {
-        attempt.catch(function () {
-          bgmStarted = false;
-        });
-      }
-    }
-
-    function pauseBgm() {
-      try { bgm.pause(); } catch (e) {}
-    }
-
-    ['pointerdown', 'touchstart', 'keydown'].forEach(function (evt) {
-      window.addEventListener(evt, startBgmIfEnabled, { passive: true });
-    });
-    window.addEventListener('beforeunload', pauseBgm);
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) startBgmIfEnabled();
-    });
-
-    var currentButton = 0;
-    var buttons = [];
-    var buttonTexts = [];
-    var buttonMarkers = [];
-    var buttonOrigPos = [];
-    var textOrigPos = [];
-
-    var normalButtonImg = baseImg + 'button_over_9.png';
-    var selectedButtonImg = baseImg + 'button_over_9.png';
+    loadConfig(); // apply music setting
 
     jsmaf.root.children.length = 0;
+    new Style({name:'white',color:'white',size:24});
+    new Style({name:'title',color:'white',size:32});
 
-    new Style({ name: 'white', color: 'white', size: 24 });
-    new Style({ name: 'title', color: 'white', size: 32 });
-
-    var background = new Image({
-      url: baseImg + 'multiview_bg_VAF.png',
-      x: 0, y: 0, width: 1920, height: 1080
-    });
+    var background = new Image({ url: baseImg+'multiview_bg_VAF.png', x:0,y:0,width:1920,height:1080 });
     jsmaf.root.children.push(background);
 
-    var centerX = 960;
-    var logoWidth = 600;
-    var logoHeight = 338;
-
-    var logo = new Image({
-      url: baseImg + 'logo.png',
-      x: centerX - logoWidth / 2,
-      y: 50,
-      width: logoWidth,
-      height: logoHeight
-    });
+    var logo = new Image({ url: baseImg+'logo.png', x:960-300, y:50, width:600, height:338 });
     jsmaf.root.children.push(logo);
 
     var menuOptions = [
-      {
-        label: 'Jailbreak',
-        action: 'navigate',
-        target: 'https://mexrldev.github.io/Y3ah/andr2.0/index.html',
-        imgKey: 'jailbreak'
-      },
-      {
-        label: 'Payloads',
-        action: 'navigate',
-        target: 'payload_host.html',
-        imgKey: 'payloadMenu'
-      },
-      {
-        label: 'Config',
-        action: 'navigate',
-        target: 'config_ui.html',
-        imgKey: 'config'
-      },
-      {
-        label: 'Exit',
-        action: 'navigate',
-        target: 'https://mexrldev.github.io/Y3ah/andr2.0/tools/toolset.html',
-        imgKey: 'exit'
-      }
+      { label: 'Jailbreak', action: 'navigate', target: 'https://mexrldev.github.io/Y3ah/andr2.0/index.html' },
+      { label: 'Payloads',  action: 'navigate', target: 'payloads.html' },
+      { label: 'Config',    action: 'navigate', target: 'config.html' },
+      { label: 'Exit',      action: 'navigate', target: 'https://mexrldev.github.io/Y3ah/andr2.0/tools/toolset.html' }
     ];
 
-    var startY = 450;
-    var buttonSpacing = 120;
-    var buttonWidth = 400;
-    var buttonHeight = 80;
+    var currentButton = 0;
+    var buttons = [], buttonTexts = [], buttonMarkers = [], buttonOrigPos = [], textOrigPos = [];
+    var normalButtonImg = baseImg+'button_over_9.png', selectedButtonImg = baseImg+'button_over_9.png';
+    var centerX=960, startY=450, buttonSpacing=120, buttonWidth=400, buttonHeight=80;
 
-    function animateZoomIn(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY) {
-      var btnW = buttonWidth;
-      var btnH = buttonHeight;
-      var startScale = btn.scaleX || 1.0;
-      var endScale = 1.1;
-      var duration = 175;
-      var elapsed = 0;
-      var step = 16;
-
-      if (animateZoomIn._interval) jsmaf.clearInterval(animateZoomIn._interval);
-
-      animateZoomIn._interval = jsmaf.setInterval(function () {
-        elapsed += step;
-        var t = Math.min(elapsed / duration, 1);
-        var eased = (1 - Math.cos(t * Math.PI)) / 2;
-        var scale = startScale + (endScale - startScale) * eased;
-
-        btn.scaleX = scale;
-        btn.scaleY = scale;
-        btn.x = btnOrigX - btnW * (scale - 1) / 2;
-        btn.y = btnOrigY - btnH * (scale - 1) / 2;
-
-        text.scaleX = scale;
-        text.scaleY = scale;
-        text.x = textOrigX - btnW * (scale - 1) / 2;
-        text.y = textOrigY - btnH * (scale - 1) / 2;
-
-        if (t >= 1) {
-          jsmaf.clearInterval(animateZoomIn._interval);
-          animateZoomIn._interval = null;
-        }
-      }, step);
-    }
-
-    function animateZoomOut(btn, text, btnOrigX, btnOrigY, textOrigX, textOrigY) {
-      var btnW = buttonWidth;
-      var btnH = buttonHeight;
-      var startScale = btn.scaleX || 1.1;
-      var endScale = 1.0;
-      var duration = 175;
-      var elapsed = 0;
-      var step = 16;
-
-      if (animateZoomOut._interval) jsmaf.clearInterval(animateZoomOut._interval);
-
-      animateZoomOut._interval = jsmaf.setInterval(function () {
-        elapsed += step;
-        var t = Math.min(elapsed / duration, 1);
-        var eased = (1 - Math.cos(t * Math.PI)) / 2;
-        var scale = startScale + (endScale - startScale) * eased;
-
-        btn.scaleX = scale;
-        btn.scaleY = scale;
-        btn.x = btnOrigX - btnW * (scale - 1) / 2;
-        btn.y = btnOrigY - btnH * (scale - 1) / 2;
-
-        text.scaleX = scale;
-        text.scaleY = scale;
-        text.x = textOrigX - btnW * (scale - 1) / 2;
-        text.y = textOrigY - btnH * (scale - 1) / 2;
-
-        if (t >= 1) {
-          jsmaf.clearInterval(animateZoomOut._interval);
-          animateZoomOut._interval = null;
-        }
-      }, step);
-    }
-
-    function openButtonTarget(option) {
-      if (!option) return;
-
-      if (option.action === 'navigate' && option.target) {
-        navigateTo(option.target);
-        return;
-      }
-
-      if (option.action === 'include' && option.target) {
-        include(option.target).catch(function (e) {
-          log('ERROR loading ' + option.target + ': ' + e.message);
+    for (var i=0; i<menuOptions.length; i++) {
+      (function(idx){
+        var opt = menuOptions[idx];
+        var btnX = centerX - buttonWidth/2;
+        var btnY = startY + idx*buttonSpacing;
+        var btn = new Image({ url:normalButtonImg, x:btnX, y:btnY, width:buttonWidth, height:buttonHeight, interactive:true,
+          onPress: function(){ currentButton=idx; updateHighlight(); navigateTo(opt.target); }
         });
-      }
-    }
-
-    var prevButton = -1;
-
-    function updateHighlight() {
-      var prevButtonObj = buttons[prevButton];
-      var buttonMarker = buttonMarkers[prevButton];
-
-      if (prevButton >= 0 && prevButton !== currentButton && prevButtonObj && buttonMarker) {
-        prevButtonObj.url = normalButtonImg;
-        prevButtonObj.alpha = 0.7;
-        prevButtonObj.borderColor = 'transparent';
-        prevButtonObj.borderWidth = 0;
-
-        if (prevButtonObj._node && prevButtonObj._node._glow) {
-          prevButtonObj.__glowVisible = false;
-          prevButtonObj._node._glow.style.display = 'none';
-        }
-
-        buttonMarker.visible = false;
-        animateZoomOut(
-          prevButtonObj,
-          buttonTexts[prevButton],
-          buttonOrigPos[prevButton].x,
-          buttonOrigPos[prevButton].y,
-          textOrigPos[prevButton].x,
-          textOrigPos[prevButton].y
-        );
-      }
-
-      for (var i = 0; i < buttons.length; i++) {
-        var button = buttons[i];
-        var marker = buttonMarkers[i];
-        var buttonText = buttonTexts[i];
-        var buttonOrig = buttonOrigPos[i];
-        var textOrig = textOrigPos[i];
-
-        if (!button || !buttonText || !buttonOrig || !textOrig || !marker) continue;
-
-        if (i === currentButton) {
-          button.url = selectedButtonImg;
-          button.alpha = 1.0;
-          button.borderColor = 'rgb(100,180,255)';
-          button.borderWidth = 3;
-
-          if (button._node && button._node._glow) {
-            button.__glowVisible = true;
-            button._node._glow.style.display = 'block';
-          }
-
-          marker.visible = true;
-          animateZoomIn(button, buttonText, buttonOrig.x, buttonOrig.y, textOrig.x, textOrig.y);
-        } else if (i !== prevButton) {
-          button.url = normalButtonImg;
-          button.alpha = 0.7;
-          button.borderColor = 'transparent';
-          button.borderWidth = 0;
-          button.scaleX = 1.0;
-          button.scaleY = 1.0;
-          button.x = buttonOrig.x;
-          button.y = buttonOrig.y;
-          buttonText.scaleX = 1.0;
-          buttonText.scaleY = 1.0;
-          buttonText.x = textOrig.x;
-          buttonText.y = textOrig.y;
-
-          if (button._node && button._node._glow) {
-            button.__glowVisible = false;
-            button._node._glow.style.display = 'none';
-          }
-
-          marker.visible = false;
-        }
-      }
-
-      prevButton = currentButton;
-    }
-
-    function handleButtonPress() {
-      var option = menuOptions[currentButton];
-      if (!option) return;
-      openButtonTarget(option);
-    }
-
-    jsmaf.onKeyDown = function (keyCode) {
-      startBgmIfEnabled();
-
-      if (keyCode === 6 || keyCode === 5) {
-        currentButton = (currentButton + 1) % buttons.length;
-        updateHighlight();
-      } else if (keyCode === 4 || keyCode === 7) {
-        currentButton = (currentButton - 1 + buttons.length) % buttons.length;
-        updateHighlight();
-      } else if (keyCode === 14) {
-        handleButtonPress();
-      }
-    };
-
-    for (var i = 0; i < menuOptions.length; i++) {
-      (function (index) {
-        var btnX = centerX - buttonWidth / 2;
-        var btnY = startY + index * buttonSpacing;
-
-        var button = new Image({
-          url: normalButtonImg,
-          x: btnX,
-          y: btnY,
-          width: buttonWidth,
-          height: buttonHeight,
-          interactive: true,
-          onPress: function () {
-            currentButton = index;
-            updateHighlight();
-            handleButtonPress();
-          }
-        });
-        buttons.push(button);
-        jsmaf.root.children.push(button);
-
-        var marker = new Image({
-          url: baseImg + 'ad_pod_marker.png',
-          x: btnX + buttonWidth - 50,
-          y: btnY + 35,
-          width: 12,
-          height: 12,
-          visible: false
-        });
-        buttonMarkers.push(marker);
-        jsmaf.root.children.push(marker);
-
-        var btnText;
-        if (useImageText) {
-          btnText = new Image({
-            url: textImageBase + menuOptions[index].imgKey + '.png',
-            x: btnX + 20,
-            y: btnY + 15,
-            width: 300,
-            height: 50
-          });
-        } else {
-          btnText = new jsmaf.Text();
-          btnText.text = menuOptions[index].label;
-          btnText.x = btnX + buttonWidth / 2 - 60;
-          btnText.y = btnY + buttonHeight / 2 - 12;
-          btnText.style = 'white';
-        }
-
-        buttonTexts.push(btnText);
-        jsmaf.root.children.push(btnText);
-
-        buttonOrigPos.push({ x: btnX, y: btnY });
-        textOrigPos.push({ x: btnText.x, y: btnText.y });
+        buttons.push(btn); jsmaf.root.children.push(btn);
+        var marker = new Image({ url: baseImg+'ad_pod_marker.png', x:btnX+buttonWidth-50, y:btnY+35, width:12, height:12, visible:false });
+        buttonMarkers.push(marker); jsmaf.root.children.push(marker);
+        var txt; if(useImageText) txt = new Image({ url: textImageBase+opt.imgKey+'.png', x:btnX+20, y:btnY+15, width:300, height:50 });
+        else { txt = new jsmaf.Text(); txt.text = opt.label; txt.x = btnX+buttonWidth/2-60; txt.y = btnY+buttonHeight/2-12; txt.style='white'; }
+        buttonTexts.push(txt); jsmaf.root.children.push(txt);
+        buttonOrigPos.push({x:btnX,y:btnY}); textOrigPos.push({x:txt.x,y:txt.y});
       })(i);
     }
 
+    // Animation & highlight (same as original)
+    var zoomInInt=null, zoomOutInt=null, prevButton=-1;
+    function easeInOut(t){ return (1-Math.cos(t*Math.PI))/2; }
+    function animateZoomIn(btn,txt,bx,by,tx,ty){
+      if(zoomInInt)jsmaf.clearInterval(zoomInInt); var w=buttonWidth,h=buttonHeight,start=btn.scaleX||1,end=1.1,dur=175,el=0,step=16;
+      zoomInInt=jsmaf.setInterval(function(){ el+=step; var t=Math.min(el/dur,1),e=easeInOut(t),s=start+(end-start)*e; btn.scaleX=s; btn.scaleY=s; btn.x=bx-w*(s-1)/2; btn.y=by-h*(s-1)/2; txt.scaleX=s; txt.scaleY=s; txt.x=tx-w*(s-1)/2; txt.y=ty-h*(s-1)/2; if(t>=1){ jsmaf.clearInterval(zoomInInt); zoomInInt=null; } },step);
+    }
+    function animateZoomOut(btn,txt,bx,by,tx,ty){
+      if(zoomOutInt)jsmaf.clearInterval(zoomOutInt); var w=buttonWidth,h=buttonHeight,start=btn.scaleX||1.1,end=1.0,dur=175,el=0,step=16;
+      zoomOutInt=jsmaf.setInterval(function(){ el+=step; var t=Math.min(el/dur,1),e=easeInOut(t),s=start+(end-start)*e; btn.scaleX=s; btn.scaleY=s; btn.x=bx-w*(s-1)/2; btn.y=by-h*(s-1)/2; txt.scaleX=s; txt.scaleY=s; txt.x=tx-w*(s-1)/2; txt.y=ty-h*(s-1)/2; if(t>=1){ jsmaf.clearInterval(zoomOutInt); zoomOutInt=null; } },step);
+    }
+    function updateHighlight(){
+      var pb=buttons[prevButton], pm=buttonMarkers[prevButton];
+      if(prevButton>=0 && prevButton!==currentButton && pb){
+        pb.url=normalButtonImg; pb.alpha=0.7; pb.borderColor='transparent'; pb.borderWidth=0; pb.__glowVisible=false; if(pm)pm.visible=false;
+        animateZoomOut(pb,buttonTexts[prevButton],buttonOrigPos[prevButton].x,buttonOrigPos[prevButton].y,textOrigPos[prevButton].x,textOrigPos[prevButton].y);
+      }
+      for(var i=0;i<buttons.length;i++){
+        var b=buttons[i], m=buttonMarkers[i], t=buttonTexts[i], ob=buttonOrigPos[i], ot=textOrigPos[i];
+        if(!b||!t)continue;
+        if(i===currentButton){
+          b.url=selectedButtonImg; b.alpha=1; b.borderColor='rgb(100,180,255)'; b.borderWidth=3; b.__glowVisible=true; if(m)m.visible=true;
+          animateZoomIn(b,t,ob.x,ob.y,ot.x,ot.y);
+        }else if(i!==prevButton){
+          b.url=normalButtonImg; b.alpha=0.7; b.borderColor='transparent'; b.borderWidth=0; b.__glowVisible=false; b.scaleX=1;b.scaleY=1; b.x=ob.x;b.y=ob.y;
+          t.scaleX=1;t.scaleY=1; t.x=ot.x;t.y=ot.y; if(m)m.visible=false;
+        }
+      }
+      prevButton=currentButton;
+    }
+
+    jsmaf.onKeyDown = function(code){
+      if(code===6||code===5) currentButton=(currentButton+1)%buttons.length;
+      else if(code===4||code===7) currentButton=(currentButton-1+buttons.length)%buttons.length;
+      else if(code===14) { var opt=menuOptions[currentButton]; if(opt) navigateTo(opt.target); }
+      updateHighlight();
+    };
+
+    window.addEventListener('keydown',function(e){
+      if(e.key==='ArrowDown') jsmaf.onKeyDown(6);
+      else if(e.key==='ArrowUp') jsmaf.onKeyDown(4);
+      else if(e.key==='Enter') jsmaf.onKeyDown(14);
+      else if(e.key==='Escape') navigateTo('https://mexrldev.github.io/Y3ah/andr2.0/tools/toolset.html');
+      e.preventDefault();
+    });
+
     updateScale();
     updateHighlight();
-    startBgmIfEnabled();
-
-    log('Main menu loaded');
+    if(musicEnabled) startBgmIfEnabled();
+    log('Main menu ready');
   })();
   </script>
 </body>
