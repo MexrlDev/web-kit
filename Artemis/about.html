@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>Artemis About</title>
+  <style>
+    /* same CSS as above */
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; font-family: Arial, Helvetica, sans-serif; touch-action: none; -webkit-user-select: none; user-select: none; }
+    #viewport { position: fixed; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; touch-action: none; }
+    #screen { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; background: #000; image-rendering: pixelated; transform-origin: center center; will-change: transform; }
+    .ui-img, .ui-text { position: absolute; transform-origin: left top; will-change: transform, opacity, left, top; }
+    .ui-img { pointer-events: none; image-rendering: pixelated; -webkit-user-drag: none; user-drag: none; }
+    .ui-text { display: flex; align-items: center; justify-content: center; font-weight: 600; text-shadow: 0 1px 0 rgba(0,0,0,0.8); pointer-events: none; color: white; white-space: nowrap; }
+    .rgb-glow { position: absolute; z-index: 1; border-radius: 8px; filter: blur(8px) saturate(1.5); pointer-events: none; opacity: 0.95; background: conic-gradient(#ff0000,#ff8800,#ffee00,#88ff00,#00ffee,#0000ff,#8800ff,#ff0088,#ff0000); mask: radial-gradient(circle, transparent 60%, black 61%); -webkit-mask: radial-gradient(circle, transparent 60%, black 61%); animation: spin 3000ms linear infinite; transform-origin: center; display: none; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .interactive { pointer-events: auto !important; cursor: pointer; touch-action: manipulation; }
+  </style>
+</head>
+<body>
+  <div id="viewport"><div id="screen"></div></div>
+  <script>
+  (function(){
+    'use strict';
+
+    // ========== FRAMEWORK (same as index.html) ==========
+    window.log=function(){ console.log.apply(console,arguments); };
+    function scriptBaseURL(){ var c=document.currentScript&&document.currentScript.src; if(!c)c=window.location.href; return new URL('.',c).href; }
+    function resolveAsset(p){ return new URL(p,scriptBaseURL()).href; }
+    function navigateTo(t){ window.location.href=new URL(t,scriptBaseURL()).href; }
+    function include(p){ var r=p; if(!/\.[a-z0-9]+$/i.test(r))r+='.html'; if(/\.js$/i.test(r))r=r.replace(/\.js$/i,'.html'); return fetch(new URL(r,scriptBaseURL()).href).then(res=>{ if(!res.ok)throw new Error('Failed to fetch '+r); return res.text(); }).then(txt=>{ (0,eval)(txt); return true; }); }
+    var screen=document.getElementById('screen');
+    function updateScale(){ var w=1920,h=1080,aw=window.innerWidth,ah=window.innerHeight,s=Math.min(aw/w,ah/h); screen.style.transform='translate(-50%, -50%) scale('+s+')'; }
+    window.addEventListener('resize',updateScale); window.addEventListener('orientationchange',updateScale); if(window.visualViewport)window.visualViewport.addEventListener('resize',updateScale);
+    function wirePress(n,h){ var l=0; function f(e){ var n=Date.now(); if(n-l<300)return; l=n; e&&e.preventDefault(); e&&e.stopPropagation(); if(musicEnabled)startBgmIfEnabled(); h(e); } n.addEventListener('pointerup',f,{passive:false}); n.addEventListener('touchend',f,{passive:false}); n.addEventListener('click',f,{passive:false}); }
+    function updateNodeFromObj(n,o){ n.style.display=o.visible===false?'none':'block'; n.style.opacity=typeof o.alpha==='number'?o.alpha:'1'; var x=o.x||0,y=o.y||0,w=o.width||(n.naturalWidth||0),h=o.height||(n.naturalHeight||0),sx=o.scaleX||1,sy=o.scaleY||sx; n.style.left=x+'px'; n.style.top=y+'px'; n.style.width=w+'px'; n.style.height=h+'px'; n.style.transform='scale('+sx+','+sy+')'; if(o.borderWidth&&o.borderColor){ n.style.border=o.borderWidth+'px solid '+o.borderColor; n.style.boxSizing='border-box'; }else n.style.border='none'; if(n._glow){ var g=n._glow,gx=x-8,gy=y-8,gw=w*sx+16,gh=h*sy+16,br=Math.max(6,Math.min(24,Math.round(Math.min(gw,gh)*0.06))); g.style.left=gx+'px'; g.style.top=gy+'px'; g.style.width=gw+'px'; g.style.height=gh+'px'; g.style.borderRadius=br+'px'; g.style.display=o.__glowVisible?'block':'none'; g.style.opacity=o._glowOpacity!==undefined?o._glowOpacity:0.95; } }
+    function createImageNode(o){ var g=document.createElement('div'); g.className='rgb-glow'; g.style.display='none'; screen.appendChild(g); var i=document.createElement('img'); i.className='ui-img'; i.style.position='absolute'; i.draggable=false; i.style.pointerEvents=o.interactive?'auto':'none'; if(o.interactive)i.classList.add('interactive'); if(o.url)i.src=o.url; updateNodeFromObj(i,o); i._glow=g; screen.appendChild(i); i.style.zIndex=2; g.style.zIndex=1; if(o.interactive&&typeof o.onPress==='function')wirePress(i,o.onPress); return i; }
+    function createTextNode(o){ var d=document.createElement('div'); d.className='ui-text'; d.style.pointerEvents='none'; d.style.whiteSpace='nowrap'; updateNodeFromObj(d,o); if(o.text)d.textContent=o.text; d.style.zIndex=3; screen.appendChild(d); return d; }
+    window.Image=function(o){ o=o||{}; var obj={ url:o.url||'', x:o.x||0, y:o.y||0, width:o.width||(o.url?100:0), height:o.height||(o.url?100:0), visible:o.visible!==false, scaleX:1, scaleY:1, alpha:1, borderColor:o.borderColor||'transparent', borderWidth:o.borderWidth||0, __glowVisible:false, interactive:!!o.interactive, onPress:o.onPress||null }; var n=createImageNode(obj); obj._node=n; Object.defineProperty(obj,'url',{get:function(){return n.src;},set:function(v){n.src=v;}}); Object.defineProperty(obj,'x',{get:function(){return parseFloat(n.style.left)||0;},set:function(v){n.style.left=v+'px';}}); Object.defineProperty(obj,'y',{get:function(){return parseFloat(n.style.top)||0;},set:function(v){n.style.top=v+'px';}}); Object.defineProperty(obj,'width',{get:function(){return parseFloat(n.style.width)||0;},set:function(v){n.style.width=v+'px';}}); Object.defineProperty(obj,'height',{get:function(){return parseFloat(n.style.height)||0;},set:function(v){n.style.height=v+'px';}}); Object.defineProperty(obj,'visible',{get:function(){return n.style.display!=='none';},set:function(v){n.style.display=v?'block':'none';}}); Object.defineProperty(obj,'scaleX',{get:function(){return obj._scaleX||1;},set:function(v){obj._scaleX=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'scaleY',{get:function(){return obj._scaleY||1;},set:function(v){obj._scaleY=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'alpha',{get:function(){return parseFloat(n.style.opacity)||1;},set:function(v){n.style.opacity=v;}}); Object.defineProperty(obj,'borderColor',{get:function(){return n.style.borderColor||'transparent';},set:function(v){n.style.borderColor=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'borderWidth',{get:function(){return parseFloat(n.style.borderWidth)||0;},set:function(v){n.style.borderWidth=v;updateNodeFromObj(n,obj);}}); Object.defineProperty(obj,'__glowVisible',{get:function(){return obj.__glowVisibleFlag||false;},set:function(v){obj.__glowVisibleFlag=v; obj._node._glowVisible=v; updateNodeFromObj(n,obj);}}); screen.appendChild(n); return obj; };
+    window.jsmaf={ root:{children:[]}, setInterval:function(f,t){return window.setInterval(f,t);}, clearInterval:function(i){window.clearInterval(i);}, onKeyDown:null, setTimeout:window.setTimeout, circleIsAdvanceButton:false, XMLHttpRequest:window.XMLHttpRequest };
+    jsmaf.Text=function(){ var o={text:'',x:0,y:0,style:'white',scaleX:1,scaleY:1}; var n=createTextNode(o); o._node=n; Object.defineProperty(o,'text',{get:function(){return n.textContent;},set:function(v){n.textContent=v;}}); Object.defineProperty(o,'x',{get:function(){return parseFloat(n.style.left)||0;},set:function(v){n.style.left=v+'px';}}); Object.defineProperty(o,'y',{get:function(){return parseFloat(n.style.top)||0;},set:function(v){n.style.top=v+'px';}}); Object.defineProperty(o,'scaleX',{get:function(){return o._scaleX||1;},set:function(v){o._scaleX=v; o._node.style.transform='scale('+v+','+(o._scaleY||v)+')';}}); Object.defineProperty(o,'scaleY',{get:function(){return o._scaleY||1;},set:function(v){o._scaleY=v; o._node.style.transform='scale('+(o._scaleX||v)+','+v+')';}}); Object.defineProperty(o,'style',{set:function(v){ if(v==='white'){ o._node.style.color='white'; o._node.style.fontSize='24px'; }else if(v==='title'){ o._node.style.color='white'; o._node.style.fontSize='32px'; } }}); screen.appendChild(n); return o; };
+    function Style(o){ window.__styles__=window.__styles__||{}; window.__styles__[o.name]=o; }
+
+    // ========== SHARED CONFIG & MUSIC ==========
+    var CONFIG_KEY = 'app_config';
+    var defaultConfig = { music: true, theme: 'default', autolapse: false, autopoop: false, autoclose: false, jb_behavior: 0 };
+    var currentConfig = JSON.parse(JSON.stringify(defaultConfig));
+    var musicEnabled = true;
+
+    function loadConfig() { try { var s=localStorage.getItem(CONFIG_KEY); if(s) Object.assign(currentConfig, JSON.parse(s)); } catch(e){} musicEnabled = currentConfig.music; if(!musicEnabled) stopBgm(); }
+    function saveConfig() { try { localStorage.setItem(CONFIG_KEY, JSON.stringify(currentConfig)); } catch(e){} }
+
+    var bgm = new Audio(resolveAsset('./data/bg.mp3'));
+    bgm.loop = true; bgm.preload = 'auto'; bgm.volume = 0.5;
+    var bgmStarted = false;
+    function startBgmIfEnabled() { if(!musicEnabled || bgmStarted) return; bgmStarted = true; var p = bgm.play(); p && p.catch && p.catch(function(){ bgmStarted = false; }); }
+    function stopBgm() { try { bgm.pause(); bgm.currentTime = 0; bgmStarted = false; } catch(e){} }
+    ['pointerdown','touchstart','keydown'].forEach(e=>window.addEventListener(e,()=>{ if(musicEnabled) startBgmIfEnabled(); },{passive:true}));
+    window.addEventListener('beforeunload', stopBgm);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && musicEnabled) startBgmIfEnabled(); });
+
+    var THEMES = { 'default': { path: '../default/index.html' }, 'Artemis': { path: 'index.html' } };
+    window.addEventListener('beforeunload', function(e){
+      var theme = currentConfig.theme;
+      if(theme && theme !== 'default'){
+        var info = THEMES[theme];
+        if(info && !window.location.pathname.endsWith(info.path)){
+          window.location.replace(info.path);
+          e.returnValue = 'Changing theme...';
+        }
+      }
+    });
+
+    // ========== ARTEMIS ABOUT UI ==========
+    var SCREEN_W = 1920, SCREEN_H = 1080, CENTER_X = SCREEN_W/2;
+    var ASSET_PATH = resolveAsset('./data/');
+
+    loadConfig();
+
+    var ICON_X = 50, ICON_Y = 50, ICON_W = 130, ICON_H = 138;
+    var LINE_X = ICON_X + ICON_W + 20, LINE_Y = 100, LINE_TARGET_W = 1600, LINE_H = 4;
+    var TITLE_RIGHT_X = 1800, TITLE_LEFT_X = LINE_X + 20, TITLE_Y = LINE_Y - 40;
+    var FOOTER_Y = SCREEN_H - 100, FOOTER_ICON_SIZE = 32, FOOTER_GAP_ICON_TEXT = 10;
+    var BIG_TEXT_SIZE = 48, SUBTITLE_SIZE = 30, THANK_EXTRA_GAP = 24;
+
+    var lineImg, iconImg, titleAbout, titleVersion, footerBackIcon, footerBackText;
+    var fadeElements = [], idleElements = [];
+    var fadeInterval = null, fadingIn = true, pressedKeys = {};
+
+    jsmaf.root.children.length = 0;
+    new Style({ name: 'bigText', color: 'black', size: BIG_TEXT_SIZE });
+    new Style({ name: 'subtitle', color: 'black', size: SUBTITLE_SIZE });
+    new Style({ name: 'helpHeader', color: 'black', size: 26 });
+    new Style({ name: 'creditHeader', color: 'black', size: 32 });
+    new Style({ name: 'creditName', color: 'black', size: 24 });
+    new Style({ name: 'title', color: 'black', size: 32 });
+    new Style({ name: 'footerText', color: 'black', size: 36, bold: true });
+
+    var bg = new Image({ url: ASSET_PATH + 'bgimg.png', x:0, y:0, width:SCREEN_W, height:SCREEN_H });
+    jsmaf.root.children.push(bg);
+
+    iconImg = new Image({ url: ASSET_PATH + 'titlescr_ico_abt-ico.png', x:ICON_X, y:ICON_Y, width:ICON_W, height:ICON_H, alpha:0 });
+    jsmaf.root.children.push(iconImg); fadeElements.push(iconImg);
+
+    lineImg = new Image({ url: ASSET_PATH + 'black.png', x:LINE_X, y:LINE_Y, width:0, height:LINE_H, alpha:0 });
+    jsmaf.root.children.push(lineImg); fadeElements.push(lineImg);
+
+    titleAbout = new jsmaf.Text(); titleAbout.text = 'About'; titleAbout.style = 'title'; titleAbout.x = TITLE_LEFT_X; titleAbout.y = TITLE_Y; titleAbout.alpha = 0;
+    jsmaf.root.children.push(titleAbout); fadeElements.push(titleAbout);
+    titleVersion = new jsmaf.Text(); titleVersion.text = 'v.3.0'; titleVersion.style = 'title'; titleVersion.x = TITLE_RIGHT_X - 80; titleVersion.y = TITLE_Y; titleVersion.alpha = 0;
+    jsmaf.root.children.push(titleVersion); fadeElements.push(titleVersion);
+
+    var contentY = LINE_Y + 60;
+    var help = new jsmaf.Text(); help.text = '====== Special Thanks From Mexrl To You ====='; help.style = 'helpHeader'; help.x = CENTER_X; help.y = contentY-40; help.alpha = 0; help.align = 'center';
+    jsmaf.root.children.push(help); fadeElements.push(help);
+    var thank = new jsmaf.Text(); thank.text = 'Thank you for using Artemis!'; thank.style = 'bigText'; thank.x = CENTER_X; thank.y = contentY; thank.alpha = 0; thank.align = 'center';
+    jsmaf.root.children.push(thank); fadeElements.push(thank);
+    var sub = new jsmaf.Text(); sub.text = 'cross   platform   hacking   system'; sub.style = 'subtitle'; sub.x = CENTER_X; sub.y = thank.y + BIG_TEXT_SIZE*1.15 + THANK_EXTRA_GAP; sub.alpha = 0; sub.align = 'center';
+    jsmaf.root.children.push(sub); fadeElements.push(sub);
+
+    // Credits...
+    var ps4Header = new jsmaf.Text(); ps4Header.text = 'PlayStation 4 Port:'; ps4Header.style = 'creditHeader'; ps4Header.x = CENTER_X-200; ps4Header.y = sub.y+80; ps4Header.alpha = 0;
+    jsmaf.root.children.push(ps4Header); fadeElements.push(ps4Header);
+    var name1 = new jsmaf.Text(); name1.text = 'MexrlDev'; name1.style = 'creditName'; name1.x = CENTER_X-180; name1.y = ps4Header.y+40; name1.alpha = 0;
+    jsmaf.root.children.push(name1); fadeElements.push(name1);
+
+    var backSectionWidth = FOOTER_ICON_SIZE + FOOTER_GAP_ICON_TEXT + 80;
+    var startX = (SCREEN_W - backSectionWidth)/2;
+    footerBackIcon = new Image({ url: ASSET_PATH + 'footer_ico_circle.png', x:startX, y:FOOTER_Y - FOOTER_ICON_SIZE/2, width:FOOTER_ICON_SIZE, height:FOOTER_ICON_SIZE, alpha:0 });
+    jsmaf.root.children.push(footerBackIcon); fadeElements.push(footerBackIcon); idleElements.push(footerBackIcon);
+    footerBackText = new jsmaf.Text(); footerBackText.text = 'Back'; footerBackText.style = 'footerText';
+    footerBackText.x = startX + FOOTER_ICON_SIZE + FOOTER_GAP_ICON_TEXT; footerBackText.y = FOOTER_Y - 18; footerBackText.alpha = 0;
+    jsmaf.root.children.push(footerBackText); fadeElements.push(footerBackText); idleElements.push(footerBackText);
+
+    function startFadeIn(){
+      var startTime = Date.now(), fadeDuration = 5000;
+      fadeInterval = jsmaf.setInterval(function(){
+        var elapsed = Date.now() - startTime, t = Math.min(elapsed/fadeDuration, 1);
+        var lineT = Math.min(elapsed/1000, 1);
+        for(var i=0; i<fadeElements.length; i++) fadeElements[i].alpha = t;
+        lineImg.width = LINE_TARGET_W * lineT;
+        if(t>=1){ jsmaf.clearInterval(fadeInterval); fadingIn = false; }
+      }, 16);
+    }
+
+    jsmaf.onKeyDown = function(code){
+      if(fadingIn) return;
+      if(code === 14 || code === 27 || code === 13) navigateTo('index.html');
+    };
+    window.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' || e.key === 'Enter') jsmaf.onKeyDown(14);
+      e.preventDefault();
+    });
+
+    updateScale();
+    startFadeIn();
+    if(musicEnabled) startBgmIfEnabled();
+    log('Artemis about ready');
+  })();
+  </script>
+</body>
+</html>
