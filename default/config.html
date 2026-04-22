@@ -90,29 +90,23 @@
         return res.json();
       })
       .then(function(data) {
-        // Expect format: { "themes": [ { "name": "default", "path": "index.html" }, ... ] }
         if (data && Array.isArray(data.themes)) {
           var newThemes = {};
           data.themes.forEach(function(t) {
             if (t.name && t.path) newThemes[t.name] = { path: t.path };
           });
-          // Ensure 'default' exists
           if (!newThemes['default']) newThemes['default'] = { path: 'index.html' };
           THEMES = newThemes;
         } else if (data && typeof data.themes === 'object') {
-          // Alternative format: { "themes": { "default": "index.html", ... } }
           THEMES = data.themes;
         }
         availableThemes = Object.keys(THEMES);
         themeLabels = availableThemes.map(function(t) { return t.charAt(0).toUpperCase() + t.slice(1); });
-        // Ensure currentConfig.theme is valid
         if (!THEMES[currentConfig.theme]) currentConfig.theme = 'default';
-        // Now build UI
         buildUI();
       })
       .catch(function(err) {
         log('Could not load config.json, using fallback themes: ' + err);
-        // Use fallback THEMES already set
         availableThemes = Object.keys(THEMES);
         themeLabels = availableThemes.map(function(t) { return t.charAt(0).toUpperCase() + t.slice(1); });
         buildUI();
@@ -173,8 +167,47 @@
         buttonOrigPos.push({x:btnX,y:btnY}); textOrigPos.push({x:txt.x,y:txt.y});
       }
 
-      var backHint = new jsmaf.Text(); backHint.text = jsmaf.circleIsAdvanceButton ? 'X to go back' : 'O to go back'; backHint.x = centerX-60; backHint.y = startY+configOptions.length*buttonSpacing+120; backHint.style='white';
+      // Back hint (text only, not a button)
+      var backHintY = startY + configOptions.length * buttonSpacing + 40;
+      var backHint = new jsmaf.Text(); 
+      backHint.text = jsmaf.circleIsAdvanceButton ? 'X to go back' : 'O to go back'; 
+      backHint.x = centerX - 60; 
+      backHint.y = backHintY; 
+      backHint.style = 'white';
       jsmaf.root.children.push(backHint);
+
+      // ---- New: "Apply Theme" button ----
+      var applyBtnWidth = 280;
+      var applyBtnHeight = 60;
+      var applyBtnX = centerX - applyBtnWidth / 2;
+      var applyBtnY = backHintY + 60; // below the back hint
+      var applyBtn = new Image({
+        url: normalButtonImg,
+        x: applyBtnX,
+        y: applyBtnY,
+        width: applyBtnWidth,
+        height: applyBtnHeight,
+        interactive: true,
+        onPress: function() {
+          // Navigate to the currently selected theme's path
+          var themePath = THEMES[currentConfig.theme]?.path;
+          if (themePath) {
+            log('Applying theme: ' + currentConfig.theme + ' -> ' + themePath);
+            navigateTo(themePath);
+          } else {
+            log('Theme path not found for ' + currentConfig.theme);
+          }
+        }
+      });
+      jsmaf.root.children.push(applyBtn);
+
+      var applyBtnText = new jsmaf.Text();
+      applyBtnText.text = 'Apply Theme';
+      applyBtnText.x = applyBtnX + applyBtnWidth/2 - 60;
+      applyBtnText.y = applyBtnY + applyBtnHeight/2 - 12;
+      applyBtnText.style = 'white';
+      jsmaf.root.children.push(applyBtnText);
+      // ---- End new button ----
 
       // Animation
       var zoomInInt=null, zoomOutInt=null, prevButton=-1;
@@ -269,7 +302,7 @@
         e.preventDefault();
       });
 
-      // Theme unload redirect
+      // Theme unload redirect (still active, but user can also use the button)
       window.addEventListener('beforeunload', function(e){
         var theme = currentConfig.theme;
         if (theme && theme !== 'default') {
